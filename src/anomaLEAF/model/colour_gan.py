@@ -93,7 +93,7 @@ class ColourGAN:
         tf.keras.utils.plot_model(model, show_shapes=True, dpi=64)
 
     def build_generator(self):
-        inputs = tf.keras.layers.Input(shape=[self.input_shape, self.input_shape, 1])
+        inputs = tf.keras.layers.Input(shape=[256, 256, 1])
 
         down_stack = [
             downsample(64, 4, apply_batchnorm=False),  # (batch_size, 128, 128, 64)
@@ -155,8 +155,8 @@ class ColourGAN:
     def build_discriminator(self):
         initializer = tf.random_normal_initializer(0., 0.02)
 
-        inp = tf.keras.layers.Input(shape=[self.input_shape, self.input_shape, 3], name='input_image')
-        tar = tf.keras.layers.Input(shape=[self.input_shape, self.input_shape, 3], name='target_image')
+        inp = tf.keras.layers.Input(shape=[256, 256, 3], name='input_image')
+        tar = tf.keras.layers.Input(shape=[256, 256, 3], name='target_image')
 
         x = tf.keras.layers.concatenate([inp, tar])  # (batch_size, 256, 256, channels*2)
 
