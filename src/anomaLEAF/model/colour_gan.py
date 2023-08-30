@@ -276,13 +276,16 @@ class ColourANOM:
 
         img_grayscale = tf.image.rgb_to_grayscale(img_rgb)
         img_reconstructed = self.model.generator(img_grayscale, training=True)
-        print(img_reconstructed.shape)
-        print(img_rgb.shape)
+
         pred_score = self.anomaly_score(img_rgb, img_reconstructed)
         pred_label = "ANOMALOUS" if self.threshold(pred_score) else "NORMAL"
 
         anomaly_map = self.anomaly_map(img_rgb, img_reconstructed)
 
+        print(img_reconstructed.shape)
+        print(img_rgb.shape)
+        print(anomaly_map.shape)
+        
         heatmap = superimpose_anomaly_map(anomaly_map, img_rgb.numpy())
         mask = compute_mask(anomaly_map, 20)
 
