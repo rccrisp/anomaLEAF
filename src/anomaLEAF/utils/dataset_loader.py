@@ -45,7 +45,7 @@ class Dataset():
         additional_dir = Path(additional_dir)
         try: 
             additional_dataset = tf.data.Dataset.list_files(str(additional_dir) + '/*')
-        except ValueError as e:
+        except tf.errors.InvalidArgumentError as e:
             print("Warning: Specified directory was empty and was not added to dataset")
             return
         
