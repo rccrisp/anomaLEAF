@@ -257,12 +257,8 @@ class ColourANOM:
     """
     def __init__(
             self,
-            train_dataset: tf.data.Dataset,
-            test_dataset: tf.data.Dataset,
             model: ColourGAN
     )->None:
-        self.train_dataset = train_dataset
-        self.test_dataset = test_dataset
 
         self.model = model
 
