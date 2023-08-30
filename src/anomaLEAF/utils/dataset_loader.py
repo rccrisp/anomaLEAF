@@ -44,10 +44,18 @@ class Dataset():
     def load_image_train(self, file_path):
         grayscale, rgb = load(file_path)
         # add in transformations here later
-
+        grayscale, rgb = self.normalize(grayscale, rgb)
         return grayscale, rgb
 
     def load_image_test(self, file_path):
         grayscale, rgb = load(file_path)
+        grayscale, rgb = self.normalize(grayscale, rgb)
 
         return grayscale, rgb
+    
+    # Normalizing the images to [-1, 1]
+    def normalize(self,input_image, real_image):
+        input_image = (input_image / 127.5) - 1
+        real_image = (real_image / 127.5) - 1
+
+        return input_image, real_image
