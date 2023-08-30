@@ -45,7 +45,12 @@ def superimpose_anomaly_map(
     """
 
     anomaly_map = anomaly_map_to_color_map(anomaly_map.squeeze(), normalize=normalize)
-    superimposed_map = cv2.addWeighted(anomaly_map, alpha, image, (1 - alpha), gamma)
+    # Specify the data type for the output array
+    output_dtype = image.dtype
+    
+    # Create an empty output array of the same shape as the input arrays
+    superimposed_map = np.empty_like(image, dtype=output_dtype)
+    cv2.addWeighted(anomaly_map, alpha, image, (1 - alpha), gamma, superimposed_map)
     return superimposed_map
 
 def compute_mask(anomaly_map: np.ndarray, threshold: float, kernel_size: int = 4) -> np.ndarray:
