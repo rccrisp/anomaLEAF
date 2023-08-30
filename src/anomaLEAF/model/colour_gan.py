@@ -270,8 +270,7 @@ class ColourANOM:
     
     def anomaly_map(self, rgb, reconstructed):
         color_difference = np.abs(reconstructed - rgb)
-        heatmap = color_difference/np.max(color_difference)
-        return cv2.cvtColor(heatmap, cv2.COLOR_RGB2BGR)
+        return color_difference/np.max(color_difference)
 
     def predict(self, img_rgb: tf.Tensor)->dict:
 
