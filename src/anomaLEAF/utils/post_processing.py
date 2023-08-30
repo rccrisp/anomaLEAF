@@ -47,12 +47,6 @@ def superimpose_anomaly_map(
     anomaly_map = anomaly_map_to_color_map(anomaly_map.squeeze(), normalize=normalize)
     image = image.squeeze()  
     image = image.astype(np.uint8) 
-    
-    print("anomaly_map shape:", anomaly_map.shape)
-    print("anomaly_map dtype:", anomaly_map.dtype)
-    print("image shape:", image.shape)
-    print("image dtype:", image.dtype)
-
     superimposed_map = cv2.addWeighted(anomaly_map, alpha, image, (1 - alpha), gamma)
     return superimposed_map
 

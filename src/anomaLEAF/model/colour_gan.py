@@ -283,7 +283,7 @@ class ColourANOM:
         anomaly_map = self.anomaly_map(img_rgb, img_reconstructed)
 
         heatmap = superimpose_anomaly_map(anomaly_map, img_rgb.numpy())
-        mask = compute_mask(anomaly_map, 20)
+        # mask = compute_mask(anomaly_map, 20)
 
         return {"image": img_rgb, 
                 "reconstructed": img_reconstructed,
@@ -291,5 +291,4 @@ class ColourANOM:
                 "heatmap": heatmap,
                 "pred_score": pred_score,
                 "pred_label": pred_label,
-                "pred_mask": mask
                 }
