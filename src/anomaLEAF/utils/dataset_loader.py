@@ -43,11 +43,10 @@ class Dataset():
 
     def add_data_to_normal_dataset(self, additional_dir: str | Path):
         additional_dir = Path(additional_dir)
-        additional_dataset = tf.data.Dataset.list_files(str(additional_dir) + '/*')
-
-        # Check if the directory is empty before proceeding
-        if tf.data.experimental.cardinality(additional_dataset).numpy() == 0:
-            print("Warning: The additional directory is empty.")
+        try: 
+            additional_dataset = tf.data.Dataset.list_files(str(additional_dir) + '/*')
+        except ValueError as e:
+            print("Warning: Specified directory was empty and was not added to dataset")
             return
         
         additional_dataset = additional_dataset.map(self.load_image_train)
