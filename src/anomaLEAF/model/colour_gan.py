@@ -79,7 +79,6 @@ class ColourGAN:
         self.generator_optimizer = generator_optimizer
         
         self.discriminator = self.build_discriminator()
-        self.gan = self.build_gan()
         self.discriminator_optimizer = discriminator_optimizer
 
         self.loss_object = tf.keras.losses.BinaryCrossentropy(from_logits=True)
