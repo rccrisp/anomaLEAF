@@ -59,7 +59,7 @@ def upsample(filters, size, apply_dropout=False):
     return result
 
 def visualise_model(model)->None:
-    tf.keras.utils.plot_model(model, show_shapes=True, dpi=64)
+    display.display(tf.keras.utils.plot_model(model, show_shapes=True, dpi=64))
 
 class ColourGAN:
     """ ColourGAN
