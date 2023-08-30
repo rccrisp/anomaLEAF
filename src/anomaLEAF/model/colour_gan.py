@@ -58,6 +58,9 @@ def upsample(filters, size, apply_dropout=False):
 
     return result
 
+def visualise_model(model)->None:
+    tf.keras.utils.plot_model(model, show_shapes=True, dpi=64)
+
 class ColourGAN:
     """ ColourGAN
 
@@ -88,9 +91,6 @@ class ColourGAN:
                                  discriminator_optimizer=discriminator_optimizer,
                                  generator=self.generator,
                                  discriminator=self.discriminator)
-        
-    def visualise_model(model)->None:
-        tf.keras.utils.plot_model(model, show_shapes=True, dpi=64)
 
     def build_generator(self):
         inputs = tf.keras.layers.Input(shape=[256, 256, 1])
