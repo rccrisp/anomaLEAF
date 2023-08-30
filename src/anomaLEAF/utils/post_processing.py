@@ -45,7 +45,9 @@ def superimpose_anomaly_map(
     """
 
     anomaly_map = anomaly_map_to_color_map(anomaly_map.squeeze(), normalize=normalize)
-
+    image = image.squeeze()  
+    image = image.astype(np.uint8) 
+    
     print("anomaly_map shape:", anomaly_map.shape)
     print("anomaly_map dtype:", anomaly_map.dtype)
     print("image shape:", image.shape)
