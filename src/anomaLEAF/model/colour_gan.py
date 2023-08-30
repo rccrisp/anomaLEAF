@@ -24,7 +24,6 @@ def generate_images(model, test_input, tar):
     plt.axis('off')
   plt.show()
 
-
 def downsample(filters, size, apply_batchnorm=True):
     initializer = tf.random_normal_initializer(0., 0.02)
 
