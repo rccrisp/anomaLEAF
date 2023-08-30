@@ -8,6 +8,7 @@ from skimage import morphology
 import tensorflow as tf
 import time
 from typing import List
+from anomaLEAF.utils.post_processing import anomaly_map_to_color_map, compute_mask, superimpose_anomaly_map
 
 def generate_images(model, test_input, tar):
   prediction = model(test_input, training=True)
@@ -249,7 +250,6 @@ class ColourGAN:
         if not checkpoint_dir:
             checkpoint_dir = self.checkpoint_dir
         self.checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
-
 
 class ColourANOM:
     """ ColourANOM
