@@ -229,10 +229,10 @@ class ColourGAN:
                 if step != 0:
                     print(f'Time taken for 1000 steps: {time.time()-start:.2f} sec\n')
 
-            start = time.time()
+                start = time.time()
 
-            generate_images(self.generator, example_input, example_target)
-            print(f"Step: {step//1000}k")
+                generate_images(self.generator, example_input, example_target)
+                print(f"Step: {step//1000}k")
 
             self.train_step(input_image, target, step)
 
