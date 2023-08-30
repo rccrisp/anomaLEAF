@@ -86,7 +86,8 @@ class ColourGAN:
 
         self.loss_object = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
-        self.checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
+        self.checkpoint_dir = checkpoint_dir
+        self.checkpoint_prefix = os.path.join(self.checkpoint_dir, "ckpt")
         self.checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
                                  discriminator_optimizer=discriminator_optimizer,
                                  generator=self.generator,
