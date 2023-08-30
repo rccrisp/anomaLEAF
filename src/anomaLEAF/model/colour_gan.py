@@ -281,11 +281,8 @@ class ColourANOM:
         pred_label = "ANOMALOUS" if self.threshold(pred_score) else "NORMAL"
 
         anomaly_map = self.anomaly_map(img_rgb, img_reconstructed)
-        
-        print(anomaly_map.shape)
-        print(img_rgb.numpy().shape)
 
-        heatmap = superimpose_anomaly_map(anomaly_map[0], img_rgb[0].numpy())
+        heatmap = superimpose_anomaly_map(anomaly_map, img_rgb.numpy())
         mask = compute_mask(anomaly_map, 20)
 
         return {"image": img_rgb, 
