@@ -1,0 +1,37 @@
+import os
+from pathlib import Path
+import tensorflow as tf
+
+def load(image_file):
+
+  real_image = tf.io.read_file(image_file)
+  real_image = tf.image.decode_image(real_image)
+
+  grayscale_image = tf.image.rgb_to_grayscale(real_image)
+
+  real_image = tf.cast(real_image, tf.float32)
+  grayscale_image = tf.cast(grayscale_image, tf.float32)
+
+  return grayscale_image, real_image
+
+
+class Dataset():
+    """ Dataset
+    
+    """
+    def __init__(
+            self,
+            normal_dir: str | Path,
+            test_dir: str | Path,
+
+    )-> None:
+        self.normal_dir = normal_dir
+        self.test_dir = test_dir
+
+    def _setup(self)->None:
+        normal_files = [os.path.join(self.normal_dir, filename) for filename in os.listdir(self.normal_dir)]
+        self.normal_dataset = tf.data.Dataset.from_tensor_slices
+
+    def load_data(self, image_path):
+        grayscale, rgb = load(image_path)
+        
