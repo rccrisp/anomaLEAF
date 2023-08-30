@@ -276,7 +276,8 @@ class ColourANOM:
 
         img_grayscale = tf.image.rgb_to_grayscale(img_rgb)
         img_reconstructed = self.model.generator(img_grayscale, training=True)
-
+        print(img_reconstructed.shape)
+        print(img_rgb.shape)
         pred_score = self.anomaly_score(img_rgb, img_reconstructed)
         pred_label = "ANOMALOUS" if self.threshold(pred_score) else "NORMAL"
 
