@@ -40,6 +40,18 @@ class Dataset():
         
         self.test_dataset = self.test_dataset.map(self.load_image_test)
         self.test_dataset = self.test_dataset.batch(self.batch_size)
+
+    def add_data_to_normal_dataset(self, additional_dir: str | Path):
+        additional_dir = Path(additional_dir)
+        additional_dataset = tf.data.Dataset.list_files(str(additional_dir) + '/*')
+        additional_dataset = additional_dataset.map(self.load_image_train)
+        # You can optionally shuffle the additional data before adding it to the dataset
+        # additional_dataset = additional_dataset.shuffle(buffer_size=BUFFER_SIZE)
+        additional_dataset = additional_dataset.batch(self.batch_size)
+        
+        # Concatenate the additional data to the existing normal_dataset
+        self.normal_dataset = self.normal_dataset.concatenate(additional_dataset)
+
     
     def load_image_train(self, file_path):
         grayscale, rgb = load(file_path)
