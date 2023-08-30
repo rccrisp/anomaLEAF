@@ -285,7 +285,7 @@ class ColourANOM:
         print(anomaly_map.shape)
         print(img_rgb.numpy().shape)
 
-        heatmap = superimpose_anomaly_map(anomaly_map, img_rgb.numpy())
+        heatmap = superimpose_anomaly_map(anomaly_map[0], img_rgb[0].numpy())
         mask = compute_mask(anomaly_map, 20)
 
         return {"image": img_rgb, 
