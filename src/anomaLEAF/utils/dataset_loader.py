@@ -21,14 +21,14 @@ class Dataset():
     def __init__(
             self,
             normal_dir: str | Path,
-            test_dir: str | Path,
+            anomalous_dir: str | Path,
             batch_size: int = 1
     )-> None:
         self.normal_dir = Path(normal_dir)
         self.normal_dataset = tf.data.Dataset.list_files(str(self.normal_dir) + '/*')
         
-        self.test_dir = Path(test_dir)
-        self.test_dataset = tf.data.Dataset.list_files(str(self.test_dir) + '/*')
+        self.anomalous_dir = Path(anomalous_dir)
+        self.anomalous_dataset = tf.data.Dataset.list_files(str(self.anomalous_dir) + '/*')
         
         self.batch_size = batch_size
 
@@ -37,8 +37,8 @@ class Dataset():
         self.normal_dataset = self.normal_dataset.shuffle(buffer_size=1000)
         self.normal_dataset = self.normal_dataset.batch(self.batch_size)
         
-        self.test_dataset = self.test_dataset.map(self.load_image_test)
-        self.test_dataset = self.test_dataset.batch(self.batch_size)
+        self.anomalous_dataset = self.anomalous_dataset.map(self.load_image_test)
+        self.anomalous_dataset = self.anomalous_dataset.batch(self.batch_size)
 
     def add_data_to_dataset(self, additional_dir: str | Path, is_normal: bool):
         additional_dir = Path(additional_dir)
@@ -57,20 +57,19 @@ class Dataset():
             # Concatenate the additional data to the existing normal_dataset
             self.normal_dataset = self.normal_dataset.concatenate(additional_dataset)
         else:
-            self.test_dataset = self.test_dataset.concatenate(additional_dataset)
+            self.anomalous_dataset = self.anomalous_dataset.concatenate(additional_dataset)
 
     
     def load_image_train(self, file_path):
         grayscale, rgb = load(file_path)
         # add in transformations here later
         grayscale, rgb = self.normalize(grayscale, rgb)
-        return grayscale, rgb
+        return grayscale, rgb, file_path
 
     def load_image_test(self, file_path):
         grayscale, rgb = load(file_path)
         grayscale, rgb = self.normalize(grayscale, rgb)
-
-        return grayscale, rgb
+        return grayscale, rgb, file_path
     
     # Normalizing the images to [-1, 1]
     def normalize(self,input_image, real_image):

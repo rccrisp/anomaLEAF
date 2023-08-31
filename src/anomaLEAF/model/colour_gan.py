@@ -269,7 +269,7 @@ class ColourANOM:
         return score > 20
     
     def anomaly_map(self, rgb, reconstructed):
-        return color_difference = np.abs(reconstructed - rgb)
+        return np.abs(reconstructed - rgb)
 
     def predict(self, img_rgb: tf.Tensor)->dict:
 
