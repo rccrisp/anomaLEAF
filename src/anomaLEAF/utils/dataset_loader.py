@@ -45,7 +45,7 @@ class Dataset():
         try: 
             additional_dataset = tf.data.Dataset.list_files(str(additional_dir) + '/*')
         except :
-            print("Warning: Specified directory ({additional_dir}) was empty and was not added to dataset")
+            print(f"Warning: Specified directory ({additional_dir}) was empty and was not added to dataset")
             return
         
         additional_dataset = additional_dataset.map(self.load_image_train)
