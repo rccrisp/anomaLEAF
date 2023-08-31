@@ -4,8 +4,7 @@ import tensorflow as tf
 
 def load(image_file):
 
-  real_image = tf.io.read_file(image_file)
-  real_image = tf.image.decode_image(real_image)
+  real_image = tf.image.decode_image(tf.io.read_file(image_file), channels=3)
 
   grayscale_image = tf.image.rgb_to_grayscale(real_image)
 
@@ -35,7 +34,7 @@ class Dataset():
 
     def create_dataset(self):
         self.normal_dataset = self.normal_dataset.map(self.load_image_train)
-        # self.normal_dataset = self.normal_dataset.shuffle(buffer_size=BUFFER_SIZE)
+        self.normal_dataset = self.normal_dataset.shuffle(buffer_size=1000)
         self.normal_dataset = self.normal_dataset.batch(self.batch_size)
         
         self.test_dataset = self.test_dataset.map(self.load_image_test)
