@@ -86,7 +86,7 @@ class Dataset():
 
 
     def load_train_image(self, file_path):
-        reduced, real = load(file_path, img_size=224, channels=self.channels)
+        reduced, real = load(file_path, img_size=self.img_size, channels=self.channels)
         # add in transformations here later
         reduced, real = self.random_jitter(reduced, real)
         real = self.normalize(real, 255.0)
@@ -94,13 +94,16 @@ class Dataset():
         return reduced, real, file_path
 
     def load_test_image(self, file_path):
-        reduced, real = load(file_path,img_size=224, channels=self.channels)
+        reduced, real = load(file_path,img_size=self.img_size, channels=self.channels)
         real = self.normalize(real, range=255.0)
         reduced = self.normalize(reduced, range=100.0)    # this is specifically for luminance channel
         return reduced, real, file_path
     
     @tf.function()
     def random_jitter(self,reduced_img, full_img):
+        reduced_shape = reduced_img.shape
+        full_shape = full_img.shape
+
         # Resizing to 286x286
         reduced_img = tf.image.resize(reduced_img, [286, 286],
                                         method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
@@ -110,9 +113,9 @@ class Dataset():
         # Generate a random seed
         seed = tf.random.uniform([], maxval=tf.int32.max, dtype=tf.int32)
 
-        # Random cropping back to 256x256 with the same random seed
-        reduced_img = tf.image.stateless_random_crop(reduced_img, size=reduced_img.shape, seed=[seed, 0])
-        full_img = tf.image.stateless_random_crop(full_img, size=full_img.shape, seed=[seed, 0])
+        # Random cropping back to original size with the same random seed
+        reduced_img = tf.image.stateless_random_crop(reduced_img, size=reduced_shape, seed=[seed, 0])
+        full_img = tf.image.stateless_random_crop(full_img, size=full_shape, seed=[seed, 0])
 
         if tf.random.uniform(()) > 0.5:
             # Random mirroring

@@ -1,4 +1,5 @@
 import cv2
+import datetime
 from IPython import display
 from matplotlib import pyplot as plt
 import numpy as np
@@ -7,23 +8,43 @@ from pathlib import Path
 from skimage import morphology
 import tensorflow as tf
 import time
-from typing import List
+from typing import Callable, List, Tuple
 from anomaLEAF.utils.post_processing import anomaly_map_to_color_map, compute_mask, superimpose_anomaly_map
 
-def generate_images(model, test_input, tar):
-  prediction = model(test_input, training=True)
-  plt.figure(figsize=(15, 15))
+def generate_images(model, inpt, tar):
+    prediction = model(inpt, training=True)
 
-  display_list = [test_input[0], tar[0], prediction[0]]
-  title = ['Input Image', 'Ground Truth', 'Predicted Image']
+    # Determine the number of channels in the input image
+    num_channels = inpt.shape[-1]
 
-  for i in range(3):
-    plt.subplot(1, 3, i+1)
-    plt.title(title[i])
-    # Getting the pixel values in the [0, 1] range to plot.
-    plt.imshow(display_list[i] * 0.5 + 0.5)
-    plt.axis('off')
-  plt.show()
+    # Initialize an empty list to store images for display
+    display_list = []
+
+    if num_channels == 1:
+        # If input has 1 channel, convert it to grayscale
+        display_list.append(tf.image.grayscale_to_rgb(inpt[0] * 100))
+    else:
+        # If input has more than 1 channel, display each channel separately
+        for i in range(num_channels):
+            display_list.append(inpt[0, :, :, i])
+
+    # Add the ground truth and predicted images to the display list
+    display_list.extend([tar[0] * 255, prediction[0]])
+
+    num_images = len(display_list)  # Number of images to display
+    num_cols = num_images  # Set the number of columns for subplots
+
+    # Define titles for each image element
+    titles = ['Channel {}'.format(i) for i in range(num_channels)] + ['Ground Truth', 'Predicted Image']
+
+    plt.figure(figsize=(5 * num_images, 5))  # Adjust figsize based on the number of images
+
+    for i in range(num_images):
+        plt.subplot(1, num_cols, i + 1)
+        plt.title(titles[i])
+        plt.imshow(display_list[i])
+        plt.axis('off')
+    plt.show()
 
 def downsample(filters, size, apply_batchnorm=True):
     initializer = tf.random_normal_initializer(0., 0.02)
@@ -68,15 +89,16 @@ class ColourGAN:
     """
     def __init__(
             self,
-            input_shape: int = 256,
-            output_channels: int = 3,
+            full_shape: Tuple[int,int,int],
+            reduced_shape: Tuple[int,int,int],
             _lambda: int = 100,
             generator_optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5),
             discriminator_optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5),
-            checkpoint_dir: str | Path = './training_checkpoints'
+            checkpoint_dir: str | Path = 'training_checkpoints/',
+            log_dir: str | Path = 'logs/'
     )->None:
-        self.input_shape = input_shape
-        self.output_channels = output_channels
+        self.full_shape = full_shape
+        self.reduced_shape = reduced_shape
 
         self.generator = self.build_generator()
         self._lambda = _lambda
@@ -93,9 +115,12 @@ class ColourGAN:
                                  discriminator_optimizer=discriminator_optimizer,
                                  generator=self.generator,
                                  discriminator=self.discriminator)
+        
+        self.summary_writer = tf.summary.create_file_writer(
+            log_dir + "fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
 
     def build_generator(self):
-        inputs = tf.keras.layers.Input(shape=[256, 256, 1])
+        inputs = tf.keras.layers.Input(shape=self.reduced_shape)
 
         down_stack = [
             downsample(64, 4, apply_batchnorm=False),  # (batch_size, 128, 128, 64)
@@ -119,7 +144,7 @@ class ColourGAN:
         ]
 
         initializer = tf.random_normal_initializer(0., 0.02)
-        last = tf.keras.layers.Conv2DTranspose(self.output_channels, 4,
+        last = tf.keras.layers.Conv2DTranspose(self.full_shape[-1], 4,
                                                 strides=2,
                                                 padding='same',
                                                 kernel_initializer=initializer,
@@ -157,8 +182,8 @@ class ColourGAN:
     def build_discriminator(self):
         initializer = tf.random_normal_initializer(0., 0.02)
 
-        inp = tf.keras.layers.Input(shape=[256, 256, 1], name='input_image')
-        tar = tf.keras.layers.Input(shape=[256, 256, 3], name='target_image')
+        inp = tf.keras.layers.Input(shape=self.reduced_shape, name='input_image')
+        tar = tf.keras.layers.Input(shape=self.full_shape, name='target_image')
 
         x = tf.keras.layers.concatenate([inp, tar])  # (batch_size, 256, 256, channels*2)
 
@@ -213,14 +238,14 @@ class ColourGAN:
         self.discriminator_optimizer.apply_gradients(zip(discriminator_gradients,
                                                     self.discriminator.trainable_variables))
 
-        # with summary_writer.as_default():
-        #     tf.summary.scalar('gen_total_loss', gen_total_loss, step=step//1000)
-        #     tf.summary.scalar('gen_gan_loss', gen_gan_loss, step=step//1000)
-        #     tf.summary.scalar('gen_l1_loss', gen_l1_loss, step=step//1000)
-        #     tf.summary.scalar('disc_loss', disc_loss, step=step//1000)
+        with self.summary_writer.as_default():
+            tf.summary.scalar('gen_total_loss', gen_total_loss, step=step//1000)
+            tf.summary.scalar('gen_gan_loss', gen_gan_loss, step=step//1000)
+            tf.summary.scalar('gen_l1_loss', gen_l1_loss, step=step//1000)
+            tf.summary.scalar('disc_loss', disc_loss, step=step//1000)
 
     def fit(self, train_ds, test_ds, steps):
-        example_input, example_target = next(iter(test_ds.take(1)))
+        example_input, example_target, _ = next(iter(test_ds.take(1)))
         start = time.time()
 
         for step, (input_image, target) in train_ds.repeat().take(steps).enumerate():
