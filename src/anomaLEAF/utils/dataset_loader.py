@@ -14,13 +14,14 @@ def load(image_file: str,
         if not callable(image_transformation) or not hasattr(tfio.experimental.color, image_transformation.__name__):
             raise ValueError("image_transformation should be a callable function from tfio.experimental.color or None")
 
-    real_image = tf.image.decode_image(tf.io.read_file(image_file), channels=3, dtype=tf.float32, expand_animations=False)
+    real_image = tf.image.decode_image(tf.io.read_file(image_file), channels=3, expand_animations=False)
+    real_image = tf.image.convert_image_dtype(real_image, dtype=tf.float32)
     real_image = tf.image.resize(real_image, [img_size, img_size])
 
     # Apply image transformation if it's not None
     transformed_image = image_transformation(real_image) if image_transformation is not None else real_image
     channel_list = tf.split(transformed_image, num_or_size_splits=transformed_image.shape[-1], axis=-1)
-    selected_channels = [channel_list[idx] for idx in channels]
+    selected_channels = [channel_list[channel] for channel in channels]
     reduced_image = tf.concat(selected_channels, axis=-1)
     
     return reduced_image, real_image
@@ -89,14 +90,11 @@ class Dataset():
         reduced, real = load(file_path, img_size=self.img_size, channels=self.channels)
         # add in transformations here later
         reduced, real = self.random_jitter(reduced, real)
-        real = self.normalize(real, 255.0)
-        reduced = self.normalize(reduced, 100.0)    # this is specifically for luminance channel
         return reduced, real, file_path
 
     def load_test_image(self, file_path):
         reduced, real = load(file_path,img_size=self.img_size, channels=self.channels)
-        real = self.normalize(real, range=255.0)
-        reduced = self.normalize(reduced, range=100.0)    # this is specifically for luminance channel
+
         return reduced, real, file_path
     
     @tf.function()
@@ -125,7 +123,7 @@ class Dataset():
         return reduced_img, full_img
 
     # Normalizing the images to [0, 1]
-    def normalize(self,image, range=None):
+    def normalize(self, image, range=None):
         max_value = range if range else tf.reduce_max(image)
         return image/max_value
     

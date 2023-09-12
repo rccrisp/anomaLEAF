@@ -11,7 +11,7 @@ import time
 from typing import Callable, List, Tuple
 from anomaLEAF.utils.post_processing import anomaly_map_to_color_map, compute_mask, superimpose_anomaly_map
 
-def generate_images(model, inpt, tar, filepath=None):
+def generate_images(model, inpt, tar, pixel_range=1, filepath=None):
     prediction = model(inpt, training=True)
 
     # Determine the number of channels in the input image
@@ -20,16 +20,11 @@ def generate_images(model, inpt, tar, filepath=None):
     # Initialize an empty list to store images for display
     display_list = []
 
-    if num_channels == 1:
-        # If input has 1 channel, convert it to grayscale
-        display_list.append(tf.image.grayscale_to_rgb(inpt[0] * 100))
-    else:
-        # If input has more than 1 channel, display each channel separately
-        for i in range(num_channels):
-            display_list.append(inpt[0, :, :, i])
+    for i in range(num_channels):
+        display_list.append(inpt[0, :, :, i])
 
     # Add the ground truth and predicted images to the display list
-    display_list.extend([tar[0] * 255, prediction[0]* 255])
+    display_list.extend([tar[0], prediction[0]])
 
     num_images = len(display_list)  # Number of images to display
     num_cols = num_images  # Set the number of columns for subplots
@@ -45,7 +40,7 @@ def generate_images(model, inpt, tar, filepath=None):
     for i in range(num_images):
         plt.subplot(1, num_cols, i + 1)
         plt.title(titles[i])
-        plt.imshow(display_list[i])
+        plt.imshow(display_list[i]*pixel_range) # recover full pixel range for RGB image display
         plt.axis('off')
     plt.show()
 
