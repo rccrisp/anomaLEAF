@@ -9,8 +9,7 @@ from skimage import morphology
 import tensorflow as tf
 import time
 from typing import Callable, List, Tuple
-from anomaLEAF.utils.post_processing import anomaly_map_to_color_map, compute_mask, superimpose_anomaly_map
-from anomaLEAF.utils.anomaly_heatmap import CIEDE2000
+from anomaLEAF.utils.post_processing import superimpose_anomaly_map
 
 def generate_images(model, inpt, tar, pixel_range=1, filepath=None):
     prediction = model(inpt, training=True)
@@ -277,44 +276,3 @@ class ColourGAN:
         if not checkpoint_dir:
             checkpoint_dir = self.checkpoint_dir
         self.checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
-
-class ColourANOM:
-    """ ColourANOM
-
-    """
-    def __init__(
-            self,
-            model: ColourGAN
-    )->None:
-
-        self.model = model
-
-    def anomaly_score(self, rgb, reconstructed):
-            return np.linalg.norm(reconstructed - rgb)
-    
-    def threshold(self, score):
-        return score > 20
-    
-    def anomaly_map(self, rgb, reconstructed):
-        return np.abs(reconstructed - rgb)
-
-    def predict(self, img_rgb: tf.Tensor)->dict:
-
-        img_grayscale = tf.image.rgb_to_grayscale(img_rgb)
-        img_reconstructed = self.model.generator(img_grayscale, training=True)
-
-        pred_score = self.anomaly_score(img_rgb, img_reconstructed)
-        pred_label = "ANOMALOUS" if self.threshold(pred_score) else "NORMAL"
-
-        anomaly_map = self.anomaly_map(img_rgb, img_reconstructed)
-
-        heatmap = superimpose_anomaly_map(anomaly_map, img_rgb.numpy())
-        # mask = compute_mask(anomaly_map, 20)
-
-        return {"image": img_rgb, 
-                "reconstructed": img_reconstructed,
-                "anomaly_map": anomaly_map,
-                "heatmap": heatmap,
-                "pred_score": pred_score,
-                "pred_label": pred_label,
-                }
