@@ -20,7 +20,7 @@ def generate_images(model, inpt, tar, pixel_range=1, filepath=None):
     # Initialize an empty list to store images for display
     display_list = []
 
-    for i in range(num_channels):
+    for i in range(0, num_channels):
         display_list.append(inpt[0, :, :, i])
 
     # Add the ground truth and predicted images to the display list
@@ -243,7 +243,7 @@ class ColourGAN:
             tf.summary.scalar('disc_loss', disc_loss, step=step//1000)
 
     def fit(self, train_ds, test_ds, steps):
-        example_input, example_target, _ = next(iter(test_ds.take(1)))
+        example_input, example_target, example_path = next(iter(test_ds.take(1)))
         start = time.time()
 
         for step, (input_image, target, path) in train_ds.repeat().take(steps).enumerate():
@@ -255,7 +255,7 @@ class ColourGAN:
 
                 start = time.time()
 
-                generate_images(self.generator, example_input, example_target, path)
+                generate_images(self.generator, inpt=example_input, tar=example_target, filepath=example_path)
                 print(f"Step: {step//1000}k")
 
             self.train_step(input_image, target, step)
