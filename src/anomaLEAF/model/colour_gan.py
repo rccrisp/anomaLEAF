@@ -10,6 +10,7 @@ import tensorflow as tf
 import time
 from typing import Callable, List, Tuple
 from anomaLEAF.utils.post_processing import anomaly_map_to_color_map, compute_mask, superimpose_anomaly_map
+from anomaLEAF.utils.anomaly_heatmap import CIEDE2000
 
 def generate_images(model, inpt, tar, pixel_range=1, filepath=None):
     prediction = model(inpt, training=True)
@@ -169,14 +170,16 @@ class ColourGAN:
         return tf.keras.Model(inputs=inputs, outputs=x)
 
     def generator_loss(self, disc_generated_output, gen_output, target):
+        # generator loss
         gan_loss = self.loss_object(tf.ones_like(disc_generated_output), disc_generated_output)
 
-        # Mean absolute error
-        l1_loss = tf.reduce_mean(tf.abs(target - gen_output))
+        # pixel loss
+        pixel_loss = tf.reduce_mean(tf.abs(target - gen_output))
+        # pixel_loss = tf.reduce_mean(CIEDE2000(target, gen_output))
 
-        total_gen_loss = gan_loss + (self._lambda * l1_loss)
+        total_gen_loss = gan_loss + (self._lambda * pixel_loss)
 
-        return total_gen_loss, gan_loss, l1_loss
+        return total_gen_loss, gan_loss, pixel_loss
 
     def build_discriminator(self):
         initializer = tf.random_normal_initializer(0., 0.02)
@@ -224,7 +227,7 @@ class ColourGAN:
             disc_real_output = self.discriminator([input_image, target], training=True)
             disc_generated_output = self.discriminator([input_image, gen_output], training=True)
 
-            gen_total_loss, gen_gan_loss, gen_l1_loss = self.generator_loss(disc_generated_output, gen_output, target)
+            gen_total_loss, gen_gan_loss, gen_pixel_loss = self.generator_loss(disc_generated_output, gen_output, target)
             disc_loss = self.discriminator_loss(disc_real_output, disc_generated_output)
 
         generator_gradients = gen_tape.gradient(gen_total_loss,
@@ -240,14 +243,14 @@ class ColourGAN:
         with self.summary_writer.as_default():
             tf.summary.scalar('gen_total_loss', gen_total_loss, step=step//1000)
             tf.summary.scalar('gen_gan_loss', gen_gan_loss, step=step//1000)
-            tf.summary.scalar('gen_l1_loss', gen_l1_loss, step=step//1000)
+            tf.summary.scalar('gen_l1_loss', gen_pixel_loss, step=step//1000)
             tf.summary.scalar('disc_loss', disc_loss, step=step//1000)
 
     def fit(self, train_ds, test_ds, steps):
         example_input, example_target, example_path = next(iter(test_ds.take(1)))
         start = time.time()
 
-        for step, (input_image, target, path) in train_ds.repeat().take(steps).enumerate():
+        for step, (input_image, target, _) in train_ds.repeat().take(steps).enumerate():
             if (step) % 1000 == 0:
                 display.clear_output(wait=True)
 
