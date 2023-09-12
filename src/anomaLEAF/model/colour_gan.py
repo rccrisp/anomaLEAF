@@ -11,7 +11,7 @@ import time
 from typing import Callable, List, Tuple
 from anomaLEAF.utils.post_processing import anomaly_map_to_color_map, compute_mask, superimpose_anomaly_map
 
-def generate_images(model, inpt, tar):
+def generate_images(model, inpt, tar, filepath=None):
     prediction = model(inpt, training=True)
 
     # Determine the number of channels in the input image
@@ -38,6 +38,8 @@ def generate_images(model, inpt, tar):
     titles = ['Channel {}'.format(i) for i in range(num_channels)] + ['Ground Truth', 'Predicted Image']
 
     plt.figure(figsize=(5 * num_images, 5))  # Adjust figsize based on the number of images
+    
+    print(filepath) if filepath
 
     for i in range(num_images):
         plt.subplot(1, num_cols, i + 1)
@@ -248,7 +250,7 @@ class ColourGAN:
         example_input, example_target, _ = next(iter(test_ds.take(1)))
         start = time.time()
 
-        for step, (input_image, target) in train_ds.repeat().take(steps).enumerate():
+        for step, (input_image, target, path) in train_ds.repeat().take(steps).enumerate():
             if (step) % 1000 == 0:
                 display.clear_output(wait=True)
 
