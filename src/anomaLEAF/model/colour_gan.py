@@ -29,7 +29,7 @@ def generate_images(model, inpt, tar, filepath=None):
             display_list.append(inpt[0, :, :, i])
 
     # Add the ground truth and predicted images to the display list
-    display_list.extend([tar[0] * 255, prediction[0]])
+    display_list.extend([tar[0] * 255, prediction[0]* 255])
 
     num_images = len(display_list)  # Number of images to display
     num_cols = num_images  # Set the number of columns for subplots
