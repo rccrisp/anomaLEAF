@@ -90,6 +90,7 @@ class ColourGAN:
             full_shape: Tuple[int,int,int],
             reduced_shape: Tuple[int,int,int],
             _lambda: int = 100,
+            loss_function: tf.keras.losses.Loss = tf.keras.losses.BinaryCrossentropy(from_logits=True),
             generator_optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5),
             discriminator_optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5),
             checkpoint_dir: str | Path = 'training_checkpoints/',
@@ -105,7 +106,7 @@ class ColourGAN:
         self.discriminator = self.build_discriminator()
         self.discriminator_optimizer = discriminator_optimizer
 
-        self.loss_object = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+        self.loss_object = loss_function
 
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_prefix = os.path.join(self.checkpoint_dir, "ckpt")
@@ -146,7 +147,7 @@ class ColourGAN:
                                                 strides=2,
                                                 padding='same',
                                                 kernel_initializer=initializer,
-                                                activation='tanh')  # (batch_size, 256, 256, 3)
+                                                activation='sigmoid')  # (batch_size, 256, 256, 3)
 
         x = inputs
 
