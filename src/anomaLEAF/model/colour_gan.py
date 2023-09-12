@@ -38,8 +38,9 @@ def generate_images(model, inpt, tar, filepath=None):
     titles = ['Channel {}'.format(i) for i in range(num_channels)] + ['Ground Truth', 'Predicted Image']
 
     plt.figure(figsize=(5 * num_images, 5))  # Adjust figsize based on the number of images
-    
-    print(filepath) if filepath
+
+    if filepath:
+        print(filepath)
 
     for i in range(num_images):
         plt.subplot(1, num_cols, i + 1)
@@ -259,7 +260,7 @@ class ColourGAN:
 
                 start = time.time()
 
-                generate_images(self.generator, example_input, example_target)
+                generate_images(self.generator, example_input, example_target, path)
                 print(f"Step: {step//1000}k")
 
             self.train_step(input_image, target, step)
