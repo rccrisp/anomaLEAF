@@ -14,5 +14,8 @@ def Euclidean(img_a: tf.Tensor, img_b: tf.Tensor) -> tf.Tensor:
     
     return euclidean_distance
 
+def magnitude_difference(img_a: tf.Tensor, img_b: tf.Tensor) -> tf.Tensor:
+    return tf.abs(img_a-img_b)
+
 def point_score(heatmap: tf.Tensor) -> tf.Tensor:
     return tf.reduce(heatmap)
