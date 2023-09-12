@@ -39,8 +39,8 @@ def generate_images(model, inpt, tar, filepath=None):
 
     plt.figure(figsize=(5 * num_images, 5))  # Adjust figsize based on the number of images
 
-    if filepath:
-        print(filepath)
+    if filepath != None:
+        print(filepath[0])
 
     for i in range(num_images):
         plt.subplot(1, num_cols, i + 1)
