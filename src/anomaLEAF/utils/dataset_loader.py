@@ -2,27 +2,38 @@ import os
 from pathlib import Path
 import tensorflow as tf
 import tensorflow_io as tfio
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, Dict
 
 def load(image_file: str,
          img_size: int,
-         image_transformation: Callable[[tf.Tensor], tf.Tensor] = None,
-         channels: List[int] = [0,1,2]) -> Tuple[tf.Tensor, tf.Tensor]:
-    
-    if image_transformation is not None:
-        # Check if image_transformation is a callable function from tf.image
-        if not callable(image_transformation) or not hasattr(tfio.experimental.color, image_transformation.__name__):
-            raise ValueError("image_transformation should be a callable function from tfio.experimental.color or None")
+         channel_extraction: Dict[Callable[[tf.Tensor], tf.Tensor], List[int]]
+         ) -> Tuple[tf.Tensor, tf.Tensor]:
 
+    # Check if channel_extraction is a dictionary
+    if not isinstance(channel_extraction, dict):
+        raise TypeError("channel_extraction must be a dictionary")
+
+    # Check the types of keys (callable) and values (list of integers)
+    for transform, channels in channel_extraction.items():
+        if transform != None:
+            if not callable(transform):
+                raise TypeError(f"The key {transform} in channel_extraction is not callable")
+        if not all(channel in [0, 1, 2] for channel in channels):
+            raise ValueError(f"The value {channels} associated with key {transform} contains invalid channels")
+        
     real_image = tf.image.decode_image(tf.io.read_file(image_file), channels=3, expand_animations=False)
     real_image = tf.image.convert_image_dtype(real_image, dtype=tf.float32)
     real_image = tf.image.resize(real_image, [img_size, img_size])
 
+    # Initialize reduced_image
+    reduced_image = tf.zeros((img_size, img_size, 0), dtype=tf.float32)
+
     # Apply image transformation if it's not None
-    transformed_image = image_transformation(real_image) if image_transformation is not None else real_image
-    channel_list = tf.split(transformed_image, num_or_size_splits=transformed_image.shape[-1], axis=-1)
-    selected_channels = [channel_list[channel] for channel in channels]
-    reduced_image = tf.concat(selected_channels, axis=-1)
+    for transform, channels in channel_extraction.items():
+        transformed_image = transform(real_image) if transform is not None else real_image
+        channel_list = tf.split(transformed_image, num_or_size_splits=transformed_image.shape[-1], axis=-1)
+        selected_channels = [channel_list[channel] for channel in channels]
+        reduced_image = tf.concat([reduced_image, tf.concat(selected_channels, axis=-1)], axis=-1)
     
     return reduced_image, real_image
 
@@ -34,23 +45,18 @@ class Dataset():
             self,
             normal_dir: str | Path,
             anomalous_dir: str | Path,
+            channel_extraction: Dict[Callable[[tf.Tensor], tf.Tensor], List[int]],
             batch_size: int = 256,
             buffer_size: int = 512,
             img_size: int = 256,
-            colourspace_transformation: Callable[[tf.Tensor], tf.Tensor] = None,
-            channels: List[int] = [0,1,2],
             verbose: bool = True
     )-> None:
-        
-        if not all(channel in [0, 1, 2] for channel in channels):
-            raise ValueError("Channel should only include values of 0, 1, or 2.")
 
         self.batch_size = batch_size
         self.buffer_size = buffer_size
 
         self.img_size = img_size
-        self.colourspace = colourspace_transformation
-        self.channels = channels
+        self.channel_extraction = channel_extraction
     
         self.normal_dir = Path(normal_dir)
         self.normal_dataset = tf.data.Dataset.list_files(str(self.normal_dir) + '/*')
@@ -79,21 +85,22 @@ class Dataset():
         print(f"{dataset_type.capitalize()} Dataset Directory:", dataset_dir)
         print(f"{dataset_type.capitalize()} Reduced Image Size:", reduced_image_size)
         print(f"{dataset_type.capitalize()} Full Image Size:", full_image_size)
-        print(f"{dataset_type.capitalize()} Extracted Channel Indices:", self.channels)
+        print(f"{dataset_type.capitalize()} Reduced Feature Input:")
+        for transform, channels in self.channel_extraction.items():
+            print(f"\t{transform.__name__ if transform is not None else transform} {channels}")
         print(f"{dataset_type.capitalize()} Batch Size:", batch_size)
         print(f"{dataset_type.capitalize()} Number of Batches:", num_batches)
-        print(f"{dataset_type.capitalize()} Colourspace Transformation:", self.colourspace)
         print()
 
 
     def load_train_image(self, file_path):
-        reduced, real = load(file_path, img_size=self.img_size, channels=self.channels)
+        reduced, real = load(file_path, img_size=self.img_size, channel_extraction=self.channel_extraction)
         # add in transformations here later
         reduced, real = self.random_jitter(reduced, real)
         return reduced, real, file_path
 
     def load_test_image(self, file_path):
-        reduced, real = load(file_path,img_size=self.img_size, channels=self.channels)
+        reduced, real = load(file_path,img_size=self.img_size, channel_extraction=self.channel_extraction)
 
         return reduced, real, file_path
     
@@ -101,19 +108,6 @@ class Dataset():
     def random_jitter(self,reduced_img, full_img):
         reduced_shape = reduced_img.shape
         full_shape = full_img.shape
-
-        # Resizing to 286x286
-        reduced_img = tf.image.resize(reduced_img, [286, 286],
-                                        method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-        full_img = tf.image.resize(full_img, [286, 286],
-                                        method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-
-        # Generate a random seed
-        seed = tf.random.uniform([], maxval=tf.int32.max, dtype=tf.int32)
-
-        # Random cropping back to original size with the same random seed
-        reduced_img = tf.image.stateless_random_crop(reduced_img, size=reduced_shape, seed=[seed, 0])
-        full_img = tf.image.stateless_random_crop(full_img, size=full_shape, seed=[seed, 0])
 
         if tf.random.uniform(()) > 0.5:
             # Random mirroring
