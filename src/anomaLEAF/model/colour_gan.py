@@ -53,8 +53,8 @@ class ColourGAN:
     """
     def __init__(
             self,
-            full_shape: Tuple[int,int,int],
-            reduced_shape: Tuple[int,int,int],
+            output_shape: Tuple[int,int,int],
+            input_shape: Tuple[int,int,int],
             inspect_img_fnc: Callable[[tf.Tensor, tf.Tensor], None] | None = None,
             _lambda: int = 100,
             loss_function: tf.keras.losses.Loss = tf.keras.losses.BinaryCrossentropy(from_logits=True),
@@ -63,8 +63,8 @@ class ColourGAN:
             checkpoint_dir: str | Path = 'training_checkpoints/',
             log_dir: str | Path = 'logs/'
     )->None:
-        self.full_shape = full_shape
-        self.reduced_shape = reduced_shape
+        self.output_shape = output_shape
+        self.input_shape = input_shape
 
         self.inspect_fnc = inspect_img_fnc
 
@@ -88,7 +88,7 @@ class ColourGAN:
             log_dir + "fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
 
     def build_generator(self):
-        inputs = tf.keras.layers.Input(shape=self.reduced_shape)
+        inputs = tf.keras.layers.Input(shape=self.input_shape)
 
         down_stack = [
             downsample(64, 4, apply_batchnorm=False),  # (batch_size, 128, 128, 64)
@@ -112,7 +112,7 @@ class ColourGAN:
         ]
 
         initializer = tf.random_normal_initializer(0., 0.02)
-        last = tf.keras.layers.Conv2DTranspose(self.full_shape[-1], 4,
+        last = tf.keras.layers.Conv2DTranspose(self.output_shape[-1], 4,
                                                 strides=2,
                                                 padding='same',
                                                 kernel_initializer=initializer,
@@ -158,8 +158,8 @@ class ColourGAN:
     def build_discriminator(self):
         initializer = tf.random_normal_initializer(0., 0.02)
 
-        inp = tf.keras.layers.Input(shape=self.reduced_shape, name='input_image')
-        tar = tf.keras.layers.Input(shape=self.full_shape, name='target_image')
+        inp = tf.keras.layers.Input(shape=self.input_shape, name='input_image')
+        tar = tf.keras.layers.Input(shape=self.output_shape, name='target_image')
 
         x = tf.keras.layers.concatenate([inp, tar])  # (batch_size, 256, 256, channels*2)
 
@@ -215,6 +215,7 @@ class ColourGAN:
                                                     self.discriminator.trainable_variables))
 
         with self.summary_writer.as_default():
+            tf.print(gen_total_loss)
             tf.summary.scalar('gen_total_loss', gen_total_loss, step=step//1000)
             tf.summary.scalar('gen_gan_loss', gen_gan_loss, step=step//1000)
             tf.summary.scalar('gen_l1_loss', gen_pixel_loss, step=step//1000)
