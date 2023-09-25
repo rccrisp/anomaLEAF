@@ -102,7 +102,7 @@ def load_grayscale_patched(img_path: str,
 
     return full_image_tensor, reduced_image_tensor, grid_image_tensor
 
-def load_channel_extraction(image_file: str,
+def load_channel_extraction(image_path: str,
          img_size: int,
          channel_extraction: Dict[Callable[[tf.Tensor], tf.Tensor], List[int]]
          ) -> Tuple[tf.Tensor, tf.Tensor]:
@@ -133,7 +133,7 @@ def load_channel_extraction(image_file: str,
         selected_channels = [channel_list[channel] for channel in channels]
         reduced_image = tf.concat([reduced_image, tf.concat(selected_channels, axis=-1)], axis=-1)
     
-    return reduced_image, real_image
+    return real_image, reduced_image
 
 def generate_images_channel_extraction(model, inpt, tar, pixel_range=1, filepath=None):
     prediction = model(inpt, training=True)
