@@ -146,7 +146,7 @@ class ColourGAN:
         difference = tf.abs(target - inpt)
         grayscale_differences = tf.reduce_sum(difference, axis=-1)
         num_differing_pixels = tf.reduce_sum(tf.cast(grayscale_differences > 0, tf.float32), axis=[1, 2]) # calculate the number of reconstructed pixels
-        average_pixel_loss = tf.reduce_sum(tf.abs(target - gen_output), axis=[1,2,3])/num_differing_pixels
+        average_pixel_loss = tf.reduce_sum(tf.abs(target - gen_output), axis=[1,2,3])/(num_differing_pixels+1e-5)
 
         batch_pixel_loss = tf.reduce_mean(average_pixel_loss)
 
@@ -215,7 +215,6 @@ class ColourGAN:
                                                     self.discriminator.trainable_variables))
 
         with self.summary_writer.as_default():
-            tf.print(gen_total_loss)
             tf.summary.scalar('gen_total_loss', gen_total_loss, step=step//1000)
             tf.summary.scalar('gen_gan_loss', gen_gan_loss, step=step//1000)
             tf.summary.scalar('gen_l1_loss', gen_pixel_loss, step=step//1000)
