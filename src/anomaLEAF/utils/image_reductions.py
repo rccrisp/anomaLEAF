@@ -119,7 +119,7 @@ def load_channel_extraction(image_path: str,
         if not all(channel in [0, 1, 2] for channel in channels):
             raise ValueError(f"The value {channels} associated with key {transform} contains invalid channels")
         
-    real_image = tf.image.decode_image(tf.io.read_file(image_file), channels=3, expand_animations=False)
+    real_image = tf.image.decode_image(tf.io.read_file(image_path), channels=3, expand_animations=False)
     real_image = tf.image.convert_image_dtype(real_image, dtype=tf.float32)
     real_image = tf.image.resize(real_image, [img_size, img_size])
 
