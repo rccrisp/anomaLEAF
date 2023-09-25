@@ -49,7 +49,7 @@ def visualise_model(model)->None:
 
 class ColourGAN:
     """ ColourGAN
-
+        ColourGAN learns to reconstruct full colour images from some reduced input image
     """
     def __init__(
             self,
