@@ -4,39 +4,6 @@ import tensorflow as tf
 import tensorflow_io as tfio
 from typing import Callable, List, Tuple, Dict
 
-def load(image_file: str,
-         img_size: int,
-         channel_extraction: Dict[Callable[[tf.Tensor], tf.Tensor], List[int]]
-         ) -> Tuple[tf.Tensor, tf.Tensor]:
-
-    # Check if channel_extraction is a dictionary
-    if not isinstance(channel_extraction, dict):
-        raise TypeError("channel_extraction must be a dictionary")
-
-    # Check the types of keys (callable) and values (list of integers)
-    for transform, channels in channel_extraction.items():
-        if transform != None:
-            if not callable(transform):
-                raise TypeError(f"The key {transform} in channel_extraction is not callable")
-        if not all(channel in [0, 1, 2] for channel in channels):
-            raise ValueError(f"The value {channels} associated with key {transform} contains invalid channels")
-        
-    real_image = tf.image.decode_image(tf.io.read_file(image_file), channels=3, expand_animations=False)
-    real_image = tf.image.convert_image_dtype(real_image, dtype=tf.float32)
-    real_image = tf.image.resize(real_image, [img_size, img_size])
-
-    # Initialize reduced_image
-    reduced_image = tf.zeros((img_size, img_size, 0), dtype=tf.float32)
-
-    # Apply image transformation if it's not None
-    for transform, channels in channel_extraction.items():
-        transformed_image = transform(real_image) if transform is not None else real_image
-        channel_list = tf.split(transformed_image, num_or_size_splits=transformed_image.shape[-1], axis=-1)
-        selected_channels = [channel_list[channel] for channel in channels]
-        reduced_image = tf.concat([reduced_image, tf.concat(selected_channels, axis=-1)], axis=-1)
-    
-    return reduced_image, real_image
-
 class Dataset():
     """ Dataset
     

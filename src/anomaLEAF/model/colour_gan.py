@@ -9,40 +9,6 @@ from skimage import morphology
 import tensorflow as tf
 import time
 from typing import Callable, List, Tuple
-from anomaLEAF.utils.post_processing import superimpose_anomaly_map
-
-def generate_images(model, inpt, tar, pixel_range=1, filepath=None):
-    prediction = model(inpt, training=True)
-
-    # Determine the number of channels in the input image
-    num_channels = inpt.shape[-1]
-
-    # Initialize an empty list to store images for display
-    display_list = []
-
-    for i in range(0, num_channels):
-        display_list.append(inpt[0, :, :, i])
-
-    # Add the ground truth and predicted images to the display list
-    display_list.extend([tar[0], prediction[0]])
-
-    num_images = len(display_list)  # Number of images to display
-    num_cols = num_images  # Set the number of columns for subplots
-
-    # Define titles for each image element
-    titles = ['Channel {}'.format(i) for i in range(num_channels)] + ['Ground Truth', 'Predicted Image']
-
-    plt.figure(figsize=(5 * num_images, 5))  # Adjust figsize based on the number of images
-
-    if filepath != None:
-        print(filepath[0])
-
-    for i in range(num_images):
-        plt.subplot(1, num_cols, i + 1)
-        plt.title(titles[i])
-        plt.imshow(display_list[i]*pixel_range) # recover full pixel range for RGB image display
-        plt.axis('off')
-    plt.show()
 
 def downsample(filters, size, apply_batchnorm=True):
     initializer = tf.random_normal_initializer(0., 0.02)
@@ -89,6 +55,7 @@ class ColourGAN:
             self,
             full_shape: Tuple[int,int,int],
             reduced_shape: Tuple[int,int,int],
+            inspect_img_fnc: Callable[[tf.Tensor, tf.Tensor], None] | None = None,
             _lambda: int = 100,
             loss_function: tf.keras.losses.Loss = tf.keras.losses.BinaryCrossentropy(from_logits=True),
             generator_optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5),
@@ -98,6 +65,8 @@ class ColourGAN:
     )->None:
         self.full_shape = full_shape
         self.reduced_shape = reduced_shape
+
+        self.inspect_fnc = inspect_img_fnc
 
         self.generator = self.build_generator()
         self._lambda = _lambda
@@ -168,17 +137,21 @@ class ColourGAN:
 
         return tf.keras.Model(inputs=inputs, outputs=x)
 
-    def generator_loss(self, disc_generated_output, gen_output, target):
+    def generator_loss(self, disc_generated_output, gen_output, target, inpt):
         # generator loss
         gan_loss = self.loss_object(tf.ones_like(disc_generated_output), disc_generated_output)
 
-        # pixel loss
-        pixel_loss = tf.reduce_mean(tf.abs(target - gen_output))
-        # pixel_loss = tf.reduce_mean(CIEDE2000(target, gen_output))
+        # calculate the pixel loss of the reconstructed pixels
+        difference = tf.abs(target - inpt)
+        grayscale_differences = tf.reduce_sum(difference, axis=-1)
+        num_differing_pixels = tf.reduce_sum(tf.cast(grayscale_differences > 0, tf.float32), axis=[1, 2]) # calculate the number of reconstructed pixels
+        average_pixel_loss = tf.reduce_sum(tf.abs(target - gen_output), axis=[1,2,3])/num_differing_pixels
 
-        total_gen_loss = gan_loss + (self._lambda * pixel_loss)
+        batch_pixel_loss = tf.reduce_mean(average_pixel_loss)
 
-        return total_gen_loss, gan_loss, pixel_loss
+        total_gen_loss = gan_loss + (self._lambda * batch_pixel_loss)
+
+        return total_gen_loss, gan_loss, batch_pixel_loss
 
     def build_discriminator(self):
         initializer = tf.random_normal_initializer(0., 0.02)
@@ -219,14 +192,14 @@ class ColourGAN:
         return total_disc_loss
     
     @tf.function
-    def train_step(self, input_image, target, step):
+    def train_step(self, input_image, target_image, step):
         with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
             gen_output = self.generator(input_image, training=True)
 
-            disc_real_output = self.discriminator([input_image, target], training=True)
+            disc_real_output = self.discriminator([input_image, target_image], training=True)
             disc_generated_output = self.discriminator([input_image, gen_output], training=True)
 
-            gen_total_loss, gen_gan_loss, gen_pixel_loss = self.generator_loss(disc_generated_output, gen_output, target)
+            gen_total_loss, gen_gan_loss, gen_pixel_loss = self.generator_loss(disc_generated_output, gen_output, target_image, input_image)
             disc_loss = self.discriminator_loss(disc_real_output, disc_generated_output)
 
         generator_gradients = gen_tape.gradient(gen_total_loss,
@@ -246,11 +219,11 @@ class ColourGAN:
             tf.summary.scalar('disc_loss', disc_loss, step=step//1000)
 
     def fit(self, train_ds, test_ds, steps):
-        example_input, example_target, example_path = next(iter(test_ds.take(1)))
+        example_trgt, example_inpt, example_pth = next(iter(test_ds.take(1)))
         start = time.time()
 
-        for step, (input_image, target, _) in train_ds.repeat().take(steps).enumerate():
-            if (step) % 1000 == 0:
+        for step, (trgt, inpt, _) in train_ds.repeat().take(steps).enumerate():
+            if (step % (steps // 10)) == 0:
                 display.clear_output(wait=True)
 
                 if step != 0:
@@ -258,18 +231,19 @@ class ColourGAN:
 
                 start = time.time()
 
-                generate_images(self.generator, inpt=example_input, tar=example_target, filepath=example_path)
-                print(f"Step: {step//1000}k")
+                self.inspect_fnc(self.generator, inpt=example_inpt, tar=example_trgt, filepath=example_pth) if self.inspect_fnc else None
+                
+                print(f"Step: {step}")
 
-            self.train_step(input_image, target, step)
+            self.train_step(input_image=inpt, target_image=trgt, step=step)
 
             # Training step
             if (step+1) % 10 == 0:
                 print('.', end='', flush=True)
 
 
-            # Save (checkpoint) the model every 5k steps
-            if (step + 1) % 5000 == 0:
+            # Save (checkpoint) the model once 20% of the steps have been taken
+            if ((step + 1) % steps//20) == 0:
                 self.checkpoint.save(file_prefix=self.checkpoint_prefix)
 
     def load_checkpoint(self, checkpoint_dir = None):
