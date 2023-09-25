@@ -138,6 +138,7 @@ class ColourGAN:
         return tf.keras.Model(inputs=inputs, outputs=x)
 
     def generator_loss(self, disc_generated_output, gen_output, target, inpt):
+
         # generator loss
         gan_loss = self.loss_object(tf.ones_like(disc_generated_output), disc_generated_output)
 
@@ -149,9 +150,10 @@ class ColourGAN:
 
         batch_pixel_loss = tf.reduce_mean(average_pixel_loss)
 
-        total_gen_loss = gan_loss + (self._lambda * batch_pixel_loss)
+        total_gen_loss = tf.reduce_mean(gan_loss + (self._lambda * batch_pixel_loss))
 
         return total_gen_loss, gan_loss, batch_pixel_loss
+
 
     def build_discriminator(self):
         initializer = tf.random_normal_initializer(0., 0.02)
@@ -212,18 +214,18 @@ class ColourGAN:
         self.discriminator_optimizer.apply_gradients(zip(discriminator_gradients,
                                                     self.discriminator.trainable_variables))
 
-        # with self.summary_writer.as_default():
-        #     tf.summary.scalar('gen_total_loss', gen_total_loss, step=step//1000)
-        #     tf.summary.scalar('gen_gan_loss', gen_gan_loss, step=step//1000)
-        #     tf.summary.scalar('gen_l1_loss', gen_pixel_loss, step=step//1000)
-        #     tf.summary.scalar('disc_loss', disc_loss, step=step//1000)
+        with self.summary_writer.as_default():
+            tf.summary.scalar('gen_total_loss', gen_total_loss, step=step//1000)
+            tf.summary.scalar('gen_gan_loss', gen_gan_loss, step=step//1000)
+            tf.summary.scalar('gen_l1_loss', gen_pixel_loss, step=step//1000)
+            tf.summary.scalar('disc_loss', disc_loss, step=step//1000)
 
     def fit(self, train_ds, test_ds, steps):
         example_trgt, example_inpt, example_pth = next(iter(test_ds.take(1)))
         start = time.time()
 
         for step, (trgt, inpt, _) in train_ds.repeat().take(steps).enumerate():
-            if (step % (steps // 10)) == 0:
+            if (step % 1000) == 0:
                 display.clear_output(wait=True)
 
                 if step != 0:
@@ -233,7 +235,7 @@ class ColourGAN:
 
                 self.inspect_fnc(self.generator, inpt=example_inpt, tar=example_trgt, filepath=example_pth) if self.inspect_fnc else None
                 
-                print(f"Step: {step}")
+                print(f"Step: {step//1000}k")
 
             self.train_step(input_image=inpt, target_image=trgt, step=step)
 
@@ -243,7 +245,7 @@ class ColourGAN:
 
 
             # Save (checkpoint) the model once 20% of the steps have been taken
-            if ((step + 1) % steps//20) == 0:
+            if ((step + 1) % 5000) == 0:
                 self.checkpoint.save(file_prefix=self.checkpoint_prefix)
 
     def load_checkpoint(self, checkpoint_dir = None):
