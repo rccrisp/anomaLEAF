@@ -213,10 +213,10 @@ class ColourGAN:
                                                     self.discriminator.trainable_variables))
 
         with self.summary_writer.as_default():
-            tf.summary.scalar('gen_total_loss', gen_total_loss, step=step//1000)
-            tf.summary.scalar('gen_gan_loss', gen_gan_loss, step=step//1000)
-            tf.summary.scalar('gen_l1_loss', gen_pixel_loss, step=step//1000)
-            tf.summary.scalar('disc_loss', disc_loss, step=step//1000)
+            tf.summary.scalar('gen_total_loss', gen_total_loss[0], step=step//1000)
+            tf.summary.scalar('gen_gan_loss', gen_gan_loss[0], step=step//1000)
+            tf.summary.scalar('gen_l1_loss', gen_pixel_loss[0], step=step//1000)
+            tf.summary.scalar('disc_loss', disc_loss[0], step=step//1000)
 
     def fit(self, train_ds, test_ds, steps):
         example_trgt, example_inpt, example_pth = next(iter(test_ds.take(1)))

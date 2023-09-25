@@ -134,36 +134,3 @@ def load_channel_extraction(image_path: str,
         reduced_image = tf.concat([reduced_image, tf.concat(selected_channels, axis=-1)], axis=-1)
     
     return real_image, reduced_image
-
-def generate_images_channel_extraction(model, inpt, tar, pixel_range=1, filepath=None):
-    prediction = model(inpt, training=True)
-
-    # Determine the number of channels in the input image
-    num_channels = inpt.shape[-1]
-
-    # Initialize an empty list to store images for display
-    display_list = []
-
-    for i in range(0, num_channels):
-        display_list.append(inpt[0, :, :, i])
-
-    # Add the ground truth and predicted images to the display list
-    display_list.extend([tar[0], prediction[0]])
-
-    num_images = len(display_list)  # Number of images to display
-    num_cols = num_images  # Set the number of columns for subplots
-
-    # Define titles for each image element
-    titles = ['Channel {}'.format(i) for i in range(num_channels)] + ['Ground Truth', 'Predicted Image']
-
-    plt.figure(figsize=(5 * num_images, 5))  # Adjust figsize based on the number of images
-
-    if filepath != None:
-        print(filepath[0])
-
-    for i in range(num_images):
-        plt.subplot(1, num_cols, i + 1)
-        plt.title(titles[i])
-        plt.imshow(display_list[i]*pixel_range) # recover full pixel range for RGB image display
-        plt.axis('off')
-    plt.show()
