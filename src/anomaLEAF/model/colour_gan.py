@@ -143,16 +143,20 @@ class ColourGAN:
         gan_loss = self.loss_object(tf.ones_like(disc_generated_output), disc_generated_output)
 
         # calculate the pixel loss of the reconstructed pixels
-        difference = tf.abs(target - inpt)
-        grayscale_differences = tf.reduce_sum(difference, axis=-1)
-        num_differing_pixels = tf.reduce_sum(tf.cast(grayscale_differences > 0, tf.float32), axis=[1, 2]) # calculate the number of reconstructed pixels
-        average_pixel_loss = tf.reduce_sum(tf.abs(target - gen_output), axis=[1,2,3])/(num_differing_pixels+1e-5)
+        # difference = tf.abs(target - inpt)
+        # grayscale_differences = tf.reduce_sum(difference, axis=-1)
+        # num_differing_pixels = tf.reduce_sum(tf.cast(grayscale_differences > 0, tf.float32), axis=[1, 2]) # calculate the number of reconstructed pixels
+        # average_pixel_loss = tf.reduce_sum(tf.abs(target - gen_output), axis=[1,2,3])/(num_differing_pixels+1e-5)
 
-        batch_pixel_loss = tf.reduce_mean(average_pixel_loss)
+        # batch_pixel_loss = tf.reduce_mean(average_pixel_loss)
 
-        total_gen_loss = tf.reduce_mean(gan_loss + (self._lambda * batch_pixel_loss))
+        # total_gen_loss = tf.reduce_mean(gan_loss + (self._lambda * batch_pixel_loss))
 
-        return total_gen_loss, gan_loss, batch_pixel_loss
+        l1_loss = tf.reduce_mean(tf.abs(target - inpt))
+
+        total_gen_loss = tf.reduce_mean(gan_loss + (self._lambda * l1_loss))
+
+        return total_gen_loss, gan_loss, l1_loss
 
 
     def build_discriminator(self):
