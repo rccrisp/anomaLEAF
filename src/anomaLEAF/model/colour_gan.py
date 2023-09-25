@@ -85,7 +85,7 @@ class ColourGAN:
                                  discriminator=self.discriminator)
         
         self.summary_writer = tf.summary.create_file_writer(
-            log_dir + "fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+            log_dir + "/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
 
     def build_generator(self):
         inputs = tf.keras.layers.Input(shape=self.input_shape)
