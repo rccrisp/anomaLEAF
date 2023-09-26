@@ -8,99 +8,131 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 
-def load_grayscale_patched(img_path: str,
-                           img_size: int = 256,
-                           patch_num: int = -1):
+def image_to_tensor(image: np.ndarray, 
+                    size: Tuple[int, int]) -> tf.Tensor:
+    tensor = tf.convert_to_tensor(image)
+    tensor = tf.image.convert_image_dtype(tensor, dtype=tf.float32)
+    tensor = tf.image.resize(tensor, size)
     
-    # takes an image with the background removed and returns a bounding box of the leaf as coordinates
-    def leaf_focus(image):
-        # Find all non-zero pixels in the image
-        non_zero_pixels = cv2.findNonZero(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY))
+    return tensor
 
-        if non_zero_pixels is not None:
-            # Get the bounding box around the non-zero pixels
-            rect = cv2.boundingRect(non_zero_pixels)
-            x, y, w, h = rect
-            # Crop the image to the bounding box
-            cropped_image = image[y:y+h, x:x+w]
-            return cropped_image, rect
-        else:
-            return None, None
+def grayscale_patches(image: np.ndarray,
+                        patch_num: int,
+                        size: Tuple[int, int]) -> Tuple[List[tf.Tensor], List[tf.Tensor], List[Tuple[int, int, int, int]]]:
+    """
+    """
+
+    image_tensor = image_to_tensor(image, size)
+
+    grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    grayscale_image = cv2.cvtColor(grayscale_image, cv2.COLOR_GRAY2BGR) # convert back to 3 channel
+
+    # Get dimensions of the grayscale image
+    height, width, _ = grayscale_image.shape
+
+    # Calculate the size of each grid square
+    grid_size = height // patch_num
+
+    grayscale_patches = []
+    colour_patches = []
+    patch_coordinates = []
+
+    for i in range(patch_num):
+        for j in range(patch_num):
+            # Calculate the coordinates for the current grid square
+            x1, y1 = i * grid_size, j * grid_size
+            x2, y2 = (i + 1) * grid_size, (j + 1) * grid_size
+
+            patch_image = image.copy()
+            patch_image[x1:x2,y1:y2] = grayscale_image[x1:x2,y1:y2]
+
+            patch_image_tensor = image_to_tensor(patch_image, size)
+
+            grayscale_patches.append(patch_image_tensor)
+            patch_coordinates.append((x1,x2,y1,y2))
+            colour_patches.append(image_tensor)
+            
+    return colour_patches, grayscale_patches, patch_coordinates
+      
+    
+def grayscale_patches_with_borders(image: np.ndarray,
+                                    patch_num: int,
+                                    size: Tuple[int, int],
+                                    border_area_ratio: float) -> Tuple[List[tf.Tensor], List[tf.Tensor], List[Tuple[int, int, int, int]], List[Tuple[int, int, int, int]]]:
+    """
+    """
         
-    def patch_grayscale(image, bounding_box, n, patch_idx):
-        if image is None or bounding_box is None:
-            return None
+    grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    grayscale_image = cv2.cvtColor(grayscale_image, cv2.COLOR_GRAY2BGR) # convert back to 3 channel
 
-        left, upper, right, lower = bounding_box
-
-        w = right - left
-        h = lower - upper
-
-        # Calculate the size of each grid square
-        grid_width = w // n
-        grid_height = h // n
-
-        if patch_idx < 0 or patch_idx >= n * n:
-            # Choose a random grid square to convert to grayscale
-            x = random.randint(0, n - 1)
-            y = random.randint(0, n - 1)
-        else:
-            # Use the specified grayscale_patch index
-            x = patch_idx % n
-            y = patch_idx // n
-
-        # Calculate the coordinates of the selected grid square
-        grid_left = left + x * grid_width
-        grid_upper = upper + y * grid_height
-        grid_right = grid_left + grid_width
-        grid_lower = grid_upper + grid_height
-
-        # Crop the selected grid square
-        grid_square = image[grid_upper:grid_lower, grid_left:grid_right]
-
-        # Convert the selected grid square to grayscale using OpenCV
-        grayscale_grid_square = cv2.cvtColor(grid_square, cv2.COLOR_BGR2GRAY)
-        grayscale_grid_square = cv2.cvtColor(grayscale_grid_square, cv2.COLOR_GRAY2BGR)  # Convert it back to BGR
-
-        # Create a mask for the selected grid square
-        grid_mask = np.zeros_like(grid_square, dtype=np.uint8)
-
-        # Replace the selected grid square in the original image with the grayscale grid square
-        modified_image = image.copy()
-        modified_image[grid_upper:grid_lower, grid_left:grid_right] = grayscale_grid_square
-
-        # Create an image with a grid to visualize the division
-        grid_image = image.copy()
-        for i in range(1, n):
-            x_pos = left + i * grid_width
-            y_pos = upper + i * grid_height
-            cv2.line(grid_image, (x_pos, upper), (x_pos, lower), (0, 255, 0), 1)
-            cv2.line(grid_image, (left, y_pos), (right, y_pos), (0, 255, 0), 1)
-
-        return modified_image, grid_image
+    # Get dimensions of the grayscale image
+    height, width, _ = grayscale_image.shape
     
-    # Load the image
-    full_image = cv2.imread(img_path)
+    # Calculate the size of each grid square
+    grid_size = height // patch_num
     
-    # Get the cropped image and bounding box
-    full_image, bounding_box = leaf_focus(full_image)
+    grayscale_patches = []
+    color_patches = []
+    patch_global_coordinates = []
+    patch_local_coordinates = []
 
-    # Create the reduced_image
-    reduced_image, grid_image = patch_grayscale(image=full_image, bounding_box=bounding_box, n=patch_num, patch_idx=-1)
+    for i in range(patch_num):
+        for j in range(patch_num):
+            # Calculate the coordinates for the current grid square
+            x1, y1 = i * grid_size, j * grid_size
+            x2, y2 = (i + 1) * grid_size, (j + 1) * grid_size
 
-    full_image_tensor = tf.convert_to_tensor(full_image)
-    full_image_tensor = tf.image.convert_image_dtype(full_image_tensor, dtype=tf.float32)
-    full_image_tensor = tf.image.resize(full_image_tensor, [img_size, img_size])
+            # Create grayscale patch
+            modified_image = image.copy()
+            modified_image[x1:x2, y1:y2] = grayscale_image[x1:x2, y1:y2]
 
-    reduced_image_tensor = tf.convert_to_tensor(reduced_image)
-    reduced_image_tensor = tf.image.convert_image_dtype(reduced_image_tensor, dtype=tf.float32)
-    reduced_image_tensor = tf.image.resize(reduced_image_tensor, [img_size, img_size])
+            # Calculate the border size based on the area
+            border_size = int(np.sqrt((border_area_ratio * abs(x2-x1)*abs(y2-y1)) / 4))
 
-    grid_image_tensor = tf.convert_to_tensor(grid_image)
-    grid_image_tensor = tf.image.convert_image_dtype(grid_image_tensor, dtype=tf.float32)
-    grid_image_tensor = tf.image.resize(grid_image_tensor, [img_size, img_size])
+            # calculate the coordinates of the expanded patch
+            if width <= border_size:
+                x1_large, x2_large = 0, width
+            else:
+                if x1 - border_size/2 < 0:
+                    x1_large = 0
+                    x2_large = x2 + border_size/2 + abs(x1-border_size/2)
+                elif x2 + border_size/2 > width:
+                    x2_large = width
+                    x1_large = x1-border_size/2 - abs(x2+border_size/2-width)
+                else :
+                    x1_large, x2_large = x1-border_size/2, x2+border_size/2
 
-    return full_image_tensor, reduced_image_tensor, grid_image_tensor
+            # Cast the coordinates to integers
+            x1_large, x2_large = int(x1_large), int(x2_large)
+
+            if height <= border_size:
+                y1_large, y2_large = 0, height
+            else:
+                if y1 - border_size/2 < 0:
+                    y1_large = 0
+                    y2_large = y2 + border_size/2 + abs(y1 - border_size/2)
+                elif y2 + border_size/2 > height:
+                    y2_large = height
+                    y1_large = y1 - border_size/2 - abs(y2 + border_size/2 - height)
+                else:
+                    y1_large, y2_large = y1 - border_size/2, y2 + border_size/2
+
+            # Cast the coordinates to integers
+            y1_large, y2_large = int(y1_large), int(y2_large)
+            
+            rgb_patch = image[x1_large:x2_large, y1_large:y2_large]
+            rgb_patch_tensor = image_to_tensor(rgb_patch, size)
+            color_patches.append(rgb_patch_tensor)
+            
+            grayscale_patch_with_border = modified_image[x1_large:x2_large, y1_large:y2_large]
+            grayscale_patch_with_border_tensor = image_to_tensor(grayscale_patch_with_border, size)
+            grayscale_patches.append(grayscale_patch_with_border_tensor)
+
+            patch_global_coordinates.append((x1,x2,y1,y2))
+            patch_local_coordinates.append((x1_large-x1, x2_large-x2, y1_large-y1, y2_large-y2))
+            
+    return color_patches, grayscale_patches, patch_global_coordinates, patch_local_coordinates
+
 
 def load_channel_extraction(image_path: str,
          img_size: int,
@@ -134,3 +166,4 @@ def load_channel_extraction(image_path: str,
         reduced_image = tf.concat([reduced_image, tf.concat(selected_channels, axis=-1)], axis=-1)
     
     return real_image, reduced_image
+

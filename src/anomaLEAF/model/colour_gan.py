@@ -55,6 +55,8 @@ class ColourGAN:
             self,
             output_shape: Tuple[int,int,int],
             input_shape: Tuple[int,int,int],
+            generator: tf.keras.Model,
+            discriminator: tf.keras.Model,
             inspect_img_fnc: Callable[[tf.Tensor, tf.Tensor], None] | None = None,
             _lambda: int = 100,
             loss_function: tf.keras.losses.Loss = tf.keras.losses.BinaryCrossentropy(from_logits=True),
@@ -68,11 +70,11 @@ class ColourGAN:
 
         self.inspect_fnc = inspect_img_fnc
 
-        self.generator = self.build_generator()
+        self.generator = generator
         self._lambda = _lambda
         self.generator_optimizer = generator_optimizer
         
-        self.discriminator = self.build_discriminator()
+        self.discriminator = discriminator
         self.discriminator_optimizer = discriminator_optimizer
 
         self.loss_object = loss_function
@@ -87,105 +89,18 @@ class ColourGAN:
         self.summary_writer = tf.summary.create_file_writer(
             log_dir + "/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
 
-    def build_generator(self):
-        inputs = tf.keras.layers.Input(shape=self.input_shape)
-
-        down_stack = [
-            downsample(64, 4, apply_batchnorm=False),  # (batch_size, 128, 128, 64)
-            downsample(128, 4),  # (batch_size, 64, 64, 128)
-            downsample(256, 4),  # (batch_size, 32, 32, 256)
-            downsample(512, 4),  # (batch_size, 16, 16, 512)
-            downsample(512, 4),  # (batch_size, 8, 8, 512)
-            downsample(512, 4),  # (batch_size, 4, 4, 512)
-            downsample(512, 4),  # (batch_size, 2, 2, 512)
-            downsample(512, 4),  # (batch_size, 1, 1, 512)
-        ]
-
-        up_stack = [
-            upsample(512, 4, apply_dropout=True),  # (batch_size, 2, 2, 1024)
-            upsample(512, 4, apply_dropout=True),  # (batch_size, 4, 4, 1024)
-            upsample(512, 4, apply_dropout=True),  # (batch_size, 8, 8, 1024)
-            upsample(512, 4),  # (batch_size, 16, 16, 1024)
-            upsample(256, 4),  # (batch_size, 32, 32, 512)
-            upsample(128, 4),  # (batch_size, 64, 64, 256)
-            upsample(64, 4),  # (batch_size, 128, 128, 128)
-        ]
-
-        initializer = tf.random_normal_initializer(0., 0.02)
-        last = tf.keras.layers.Conv2DTranspose(self.output_shape[-1], 4,
-                                                strides=2,
-                                                padding='same',
-                                                kernel_initializer=initializer,
-                                                activation='sigmoid')  # (batch_size, 256, 256, 3)
-
-        x = inputs
-
-        # Downsampling through the model
-        skips = []
-        for down in down_stack:
-            x = down(x)
-            skips.append(x)
-
-        skips = reversed(skips[:-1])
-
-        # Upsampling and establishing the skip connections
-        for up, skip in zip(up_stack, skips):
-            x = up(x)
-            x = tf.keras.layers.Concatenate()([x, skip])
-
-        x = last(x)
-
-        return tf.keras.Model(inputs=inputs, outputs=x)
+   
 
     def generator_loss(self, disc_generated_output, gen_output, target, inpt):
 
         # generator loss
         gan_loss = self.loss_object(tf.ones_like(disc_generated_output), disc_generated_output)
 
-        # calculate the pixel loss of the reconstructed pixels
-        # difference = tf.abs(target - inpt)
-        # grayscale_differences = tf.reduce_sum(difference, axis=-1)
-        # num_differing_pixels = tf.reduce_sum(tf.cast(grayscale_differences > 0, tf.float32), axis=[1, 2]) # calculate the number of reconstructed pixels
-        # average_pixel_loss = tf.reduce_sum(tf.abs(target - gen_output), axis=[1,2,3])/(num_differing_pixels+1e-5)
-
-        # batch_pixel_loss = tf.reduce_mean(average_pixel_loss)
-
-        # total_gen_loss = tf.reduce_mean(gan_loss + (self._lambda * batch_pixel_loss))
-
         l1_loss = tf.reduce_mean(tf.abs(target - inpt))
 
         total_gen_loss = tf.reduce_mean(gan_loss + (self._lambda * l1_loss))
 
         return total_gen_loss, gan_loss, l1_loss
-
-
-    def build_discriminator(self):
-        initializer = tf.random_normal_initializer(0., 0.02)
-
-        inp = tf.keras.layers.Input(shape=self.input_shape, name='input_image')
-        tar = tf.keras.layers.Input(shape=self.output_shape, name='target_image')
-
-        x = tf.keras.layers.concatenate([inp, tar])  # (batch_size, 256, 256, channels*2)
-
-        down1 = downsample(64, 4, False)(x)  # (batch_size, 128, 128, 64)
-        down2 = downsample(128, 4)(down1)  # (batch_size, 64, 64, 128)
-        down3 = downsample(256, 4)(down2)  # (batch_size, 32, 32, 256)
-
-        zero_pad1 = tf.keras.layers.ZeroPadding2D()(down3)  # (batch_size, 34, 34, 256)
-        conv = tf.keras.layers.Conv2D(512, 4, strides=1,
-                                        kernel_initializer=initializer,
-                                        use_bias=False)(zero_pad1)  # (batch_size, 31, 31, 512)
-
-        batchnorm1 = tf.keras.layers.BatchNormalization()(conv)
-
-        leaky_relu = tf.keras.layers.LeakyReLU()(batchnorm1)
-
-        zero_pad2 = tf.keras.layers.ZeroPadding2D()(leaky_relu)  # (batch_size, 33, 33, 512)
-
-        last = tf.keras.layers.Conv2D(1, 4, strides=1,
-                                        kernel_initializer=initializer)(zero_pad2)  # (batch_size, 30, 30, 1)
-
-        return tf.keras.Model(inputs=[inp, tar], outputs=last)
 
     def discriminator_loss(self, disc_real_output, disc_generated_output):
 
