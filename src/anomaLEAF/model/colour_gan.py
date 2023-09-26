@@ -87,9 +87,7 @@ class ColourGAN:
                                  discriminator=self.discriminator)
         
         self.summary_writer = tf.summary.create_file_writer(
-            log_dir + "/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-
-   
+            os.path.join(log_dir, "fit", datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
 
     def generator_loss(self, disc_generated_output, gen_output, target, inpt):
 
@@ -161,7 +159,6 @@ class ColourGAN:
             # Training step
             if (step+1) % 10 == 0:
                 print('.', end='', flush=True)
-
 
             # Save (checkpoint) the model once 20% of the steps have been taken
             if ((step + 1) % 5000) == 0:
