@@ -16,120 +16,91 @@ def image_to_tensor(image: np.ndarray,
     
     return tensor
 
+    
 def grayscale_patches(image: np.ndarray,
-                        patch_num: int,
-                        size: Tuple[int, int]) -> Tuple[List[tf.Tensor], List[tf.Tensor], List[Tuple[int, int, int, int]]]:
+                                    patch_size: Tuple[int,int],
+                                    tile_size: Tuple[int, int]) -> Tuple[List[tf.Tensor], List[tf.Tensor], List[Tuple[int, int, int, int]], List[Tuple[int, int, int, int]]]:
     """
     """
 
-    image_tensor = image_to_tensor(image, size)
+    max_width = image.shape[0]
+    max_height = image.shape[1]
 
     grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     grayscale_image = cv2.cvtColor(grayscale_image, cv2.COLOR_GRAY2BGR) # convert back to 3 channel
 
-    # Get dimensions of the grayscale image
-    height, width, _ = grayscale_image.shape
+    patch_rows = grayscale_image.shape[0] // patch_size[0] + (1 if image.shape[0] % patch_size[0] != 0 else 0)
+    patch_cols = grayscale_image.shape[1] // patch_size[1] + (1 if image.shape[1] % patch_size[1] != 0 else 0)
 
-    # Calculate the size of each grid square
-    grid_size = height // patch_num
-
-    grayscale_patches = []
-    colour_patches = []
-    patch_coordinates = []
-
-    for i in range(patch_num):
-        for j in range(patch_num):
-            # Calculate the coordinates for the current grid square
-            x1, y1 = i * grid_size, j * grid_size
-            x2, y2 = (i + 1) * grid_size, (j + 1) * grid_size
-
-            patch_image = image.copy()
-            patch_image[x1:x2,y1:y2] = grayscale_image[x1:x2,y1:y2]
-
-            patch_image_tensor = image_to_tensor(patch_image, size)
-
-            grayscale_patches.append(patch_image_tensor)
-            patch_coordinates.append((x1,x2,y1,y2))
-            colour_patches.append(image_tensor)
-            
-    return colour_patches, grayscale_patches, patch_coordinates
-      
-    
-def grayscale_patches_with_borders(image: np.ndarray,
-                                    patch_num: int,
-                                    size: Tuple[int, int],
-                                    border_area_ratio: float) -> Tuple[List[tf.Tensor], List[tf.Tensor], List[Tuple[int, int, int, int]], List[Tuple[int, int, int, int]]]:
-    """
-    """
-        
-    grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    grayscale_image = cv2.cvtColor(grayscale_image, cv2.COLOR_GRAY2BGR) # convert back to 3 channel
-
-    # Get dimensions of the grayscale image
-    height, width, _ = grayscale_image.shape
-    
-    # Calculate the size of each grid square
-    grid_size = height // patch_num
-    
     grayscale_patches = []
     color_patches = []
     patch_global_coordinates = []
     patch_local_coordinates = []
 
-    for i in range(patch_num):
-        for j in range(patch_num):
+    x_diff = tile_size[0]-patch_size[0]
+    y_diff = tile_size[1]-patch_size[1]
+
+    tensor_size = tile_size
+
+    for i in range(patch_rows):
+        for j in range(patch_cols):
             # Calculate the coordinates for the current grid square
-            x1, y1 = i * grid_size, j * grid_size
-            x2, y2 = (i + 1) * grid_size, (j + 1) * grid_size
+            x1, y1 = i * patch_size[0], j * patch_size[1]
+            x2, y2 = (i + 1) * patch_size[0], (j + 1) * patch_size[1]
 
             # Create grayscale patch
             modified_image = image.copy()
-            modified_image[x1:x2, y1:y2] = grayscale_image[x1:x2, y1:y2]
-
-            # Calculate the border size based on the area
-            border_size = int(np.sqrt((border_area_ratio * abs(x2-x1)*abs(y2-y1)) / 4))
-
-            # calculate the coordinates of the expanded patch
-            if width <= border_size:
-                x1_large, x2_large = 0, width
-            else:
-                if x1 - border_size/2 < 0:
-                    x1_large = 0
-                    x2_large = x2 + border_size/2 + abs(x1-border_size/2)
-                elif x2 + border_size/2 > width:
-                    x2_large = width
-                    x1_large = x1-border_size/2 - abs(x2+border_size/2-width)
-                else :
-                    x1_large, x2_large = x1-border_size/2, x2+border_size/2
-
-            # Cast the coordinates to integers
-            x1_large, x2_large = int(x1_large), int(x2_large)
-
-            if height <= border_size:
-                y1_large, y2_large = 0, height
-            else:
-                if y1 - border_size/2 < 0:
-                    y1_large = 0
-                    y2_large = y2 + border_size/2 + abs(y1 - border_size/2)
-                elif y2 + border_size/2 > height:
-                    y2_large = height
-                    y1_large = y1 - border_size/2 - abs(y2 + border_size/2 - height)
-                else:
-                    y1_large, y2_large = y1 - border_size/2, y2 + border_size/2
-
-            # Cast the coordinates to integers
-            y1_large, y2_large = int(y1_large), int(y2_large)
+            modified_image[x1:x2, y1:y2] = grayscale_image[x1:x2,y1:y2]
             
+            # if the tile is larger than the original image
+            if max_width < tile_size[0]:
+                tensor_size[0] = max_width
+                x1_offset = x1
+                x2_offset = max_width-x2
+            else:
+                if x1-x_diff//2 < 0:
+                    x1_offset = x1
+                    x2_offset = x_diff-x1_offset
+                elif max_width < x2+x_diff//2:
+                    x2_offset = max_width-x2
+                    x1_offset = x_diff-x2_offset
+                else:
+                    x1_offset = x_diff//2
+                    x2_offset = x_diff//2
+            
+            if max_height < tile_size[1]:
+                tensor_size[1] = max_height
+                y1_offset = y1
+                y2_offset = max_height-y2
+            else:
+                if y1-y_diff//2 < 0:
+                    y1_offset = y1
+                    y2_offset = y_diff - y1_offset
+                elif max_height < y2+y_diff//2:
+                    y2_offset = max_height-y2
+                    y1_offset = y_diff-y2_offset
+                else:
+                    y1_offset = y_diff//2
+                    y2_offset = y_diff//2
+            
+
+            
+            x1_large, x2_large, y1_large, y2_large = x1-x1_offset, x2+x2_offset, y1-y1_offset, y2+y2_offset
+
             rgb_patch = image[x1_large:x2_large, y1_large:y2_large]
-            rgb_patch_tensor = image_to_tensor(rgb_patch, size)
+            rgb_patch_tensor = image_to_tensor(rgb_patch, tensor_size)
             color_patches.append(rgb_patch_tensor)
             
             grayscale_patch_with_border = modified_image[x1_large:x2_large, y1_large:y2_large]
-            grayscale_patch_with_border_tensor = image_to_tensor(grayscale_patch_with_border, size)
+            grayscale_patch_with_border_tensor = image_to_tensor(grayscale_patch_with_border, tensor_size)
             grayscale_patches.append(grayscale_patch_with_border_tensor)
 
+            # coordinates of grayscale patch in global image
             patch_global_coordinates.append((x1,x2,y1,y2))
-            patch_local_coordinates.append((x1_large-x1, x2_large-x2, y1_large-y1, y2_large-y2))
+            # coordinates of grayscale patch in bordered tile
+            patch_local_coordinates.append((x1_offset, patch_size[0]+x1_offset, y1_offset, patch_size[1]+y1_offset))
+
+            
             
     return color_patches, grayscale_patches, patch_global_coordinates, patch_local_coordinates
 
