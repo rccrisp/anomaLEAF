@@ -53,8 +53,6 @@ class ColourGAN:
     """
     def __init__(
             self,
-            output_shape: Tuple[int,int,int],
-            input_shape: Tuple[int,int,int],
             generator: tf.keras.Model,
             discriminator: tf.keras.Model,
             inspect_img_fnc: Callable[[tf.Tensor, tf.Tensor], None] | None = None,
@@ -65,8 +63,6 @@ class ColourGAN:
             checkpoint_dir: str | Path = 'training_checkpoints/',
             log_dir: str | Path = 'logs/'
     )->None:
-        self.output_shape = output_shape
-        self.input_shape = input_shape
 
         self.inspect_fnc = inspect_img_fnc
 
