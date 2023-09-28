@@ -61,7 +61,8 @@ class ColourGAN:
             generator_optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5),
             discriminator_optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5),
             checkpoint_dir: str | Path = 'training_checkpoints/',
-            log_dir: str | Path = 'logs/'
+            log_dir: str | Path = 'logs/',
+            patience: int = -1
     )->None:
 
         self.inspect_fnc = inspect_img_fnc
@@ -74,6 +75,8 @@ class ColourGAN:
         self.discriminator_optimizer = discriminator_optimizer
 
         self.loss_object = loss_function
+
+        self.patience = patience
 
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_prefix = os.path.join(self.checkpoint_dir, "ckpt")
@@ -139,7 +142,6 @@ class ColourGAN:
         example_trgt, example_inpt, example_pth = next(iter(test_ds.take(1)))
         start = time.time()
 
-        patience = 5
         count = 0
         best_gen_pixel_loss = float('inf')
 
@@ -168,12 +170,16 @@ class ColourGAN:
                     if gen_pixel_loss < best_gen_pixel_loss:
                         best_gen_pixel_loss = gen_pixel_loss
                         count = 0  # Reset the count of steps without improvement
+                        # if the performance has improved, save a checkpoint
+                        self.checkpoint.save(file_prefix=self.checkpoint_prefix)
                     else:
                         count += 1
 
                     # Check if patience has been exhausted
-                    if count >= patience:
+                    if count >= self.patience and 0 < self.patience:
                         print(f'Early stopping at step {step} due to no improvement in gen_pixel_loss.')
+                        # if more training has not improved model performance, load the best model
+                        self.checkpoint.restore(tf.train.latest_checkpoint(self.checkpoint_dir))
                         break  # Terminate training loop
 
                 start = time.time()
@@ -188,10 +194,6 @@ class ColourGAN:
             # Training step
             if (step+1) % 10 == 0:
                 print('.', end='', flush=True)
-
-            # Save (checkpoint) the model after 5000 steps
-            if ((step + 1) % 5000) == 0:
-                self.checkpoint.save(file_prefix=self.checkpoint_prefix)
 
         return (gen_total_loss_history, gen_gan_loss_history, gen_pixel_loss_history, disc_loss_history) 
 
