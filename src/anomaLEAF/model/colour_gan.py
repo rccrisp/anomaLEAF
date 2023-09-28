@@ -143,7 +143,10 @@ class ColourGAN:
         count = 0
         best_gen_pixel_loss = float('inf')
 
-        gen_total_loss_history, gen_gan_loss_history, gen_pixel_loss_history, disc_loss_history = []
+        gen_total_loss_history = []
+        gen_gan_loss_history = []
+        gen_pixel_loss_history = []
+        disc_loss_history = []
 
         for step, (trgt, inpt, _) in train_ds.repeat().take(steps).enumerate():
             if (step % 1000) == 0:
