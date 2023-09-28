@@ -190,7 +190,7 @@ class ColourGAN:
             if ((step + 1) % 5000) == 0:
                 self.checkpoint.save(file_prefix=self.checkpoint_prefix)
 
-        return gen_total_loss_history, gen_gan_loss_history, gen_pixel_loss_history, disc_loss_history 
+        return (gen_total_loss_history, gen_gan_loss_history, gen_pixel_loss_history, disc_loss_history) 
 
     def load_checkpoint(self, checkpoint_dir = None):
         if not checkpoint_dir:
