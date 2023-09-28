@@ -18,8 +18,8 @@ def image_to_tensor(image: np.ndarray,
 
     
 def grayscale_patches(image: np.ndarray,
-                                    patch_size: Tuple[int,int],
-                                    tile_size: Tuple[int, int]) -> Tuple[List[tf.Tensor], List[tf.Tensor], List[Tuple[int, int, int, int]], List[Tuple[int, int, int, int]]]:
+                        patch_size: Tuple[int,int],
+                        tile_size: Tuple[int, int]) -> Tuple[List[tf.Tensor], List[tf.Tensor], List[Tuple[int, int, int, int]], List[Tuple[int, int, int, int]]]:
     """
     """
 

@@ -133,9 +133,17 @@ class ColourGAN:
             tf.summary.scalar('gen_l1_loss', gen_pixel_loss, step=step//1000)
             tf.summary.scalar('disc_loss', disc_loss, step=step//1000)
 
+        return gen_total_loss, gen_gan_loss, gen_pixel_loss, disc_loss
+
     def fit(self, train_ds, test_ds, steps):
         example_trgt, example_inpt, example_pth = next(iter(test_ds.take(1)))
         start = time.time()
+
+        patience = 5
+        count = 0
+        best_gen_pixel_loss = float('inf')
+
+        gen_total_loss_history, gen_gan_loss_history, gen_pixel_loss_history, disc_loss_history = []
 
         for step, (trgt, inpt, _) in train_ds.repeat().take(steps).enumerate():
             if (step % 1000) == 0:
@@ -144,21 +152,45 @@ class ColourGAN:
                 if step != 0:
                     print(f'Time taken for 1000 steps: {time.time()-start:.2f} sec\n')
 
+                    print(f"Total Generator Loss: {gen_total_loss:.5f}")
+                    gen_total_loss_history.append(gen_total_loss)
+                    print(f"Generator GAN Loss: {gen_gan_loss:.5f}")
+                    gen_gan_loss_history.append(gen_gan_loss)
+                    print(f"Generator Pixel Loss: {gen_pixel_loss:.5f}")
+                    gen_pixel_loss_history.append(gen_pixel_loss)
+                    print(f"Discriminator Loss: {disc_loss:.5f}")
+                    disc_loss_history.append(disc_loss)
+
+                    # Check if gen_pixel_loss has improved
+                    if gen_pixel_loss < best_gen_pixel_loss:
+                        best_gen_pixel_loss = gen_pixel_loss
+                        count = 0  # Reset the count of steps without improvement
+                    else:
+                        count += 1
+
+                    # Check if patience has been exhausted
+                    if count >= patience:
+                        print(f'Early stopping at step {step} due to no improvement in gen_pixel_loss.')
+                        break  # Terminate training loop
+
                 start = time.time()
 
                 self.inspect_fnc(self.generator, inpt=example_inpt, tar=example_trgt, filepath=example_pth) if self.inspect_fnc else None
-                
+
+
                 print(f"Step: {step//1000}k")
 
-            self.train_step(input_image=inpt, target_image=trgt, step=step)
+            gen_total_loss, gen_gan_loss, gen_pixel_loss, disc_loss = self.train_step(input_image=inpt, target_image=trgt, step=step)
 
             # Training step
             if (step+1) % 10 == 0:
                 print('.', end='', flush=True)
 
-            # Save (checkpoint) the model once 20% of the steps have been taken
+            # Save (checkpoint) the model after 5000 steps
             if ((step + 1) % 5000) == 0:
                 self.checkpoint.save(file_prefix=self.checkpoint_prefix)
+
+        return gen_total_loss_history, gen_gan_loss_history, gen_pixel_loss_history, disc_loss_history 
 
     def load_checkpoint(self, checkpoint_dir = None):
         if not checkpoint_dir:

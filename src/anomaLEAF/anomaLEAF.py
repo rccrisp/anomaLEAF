@@ -19,7 +19,7 @@ class anomaLEAF:
         """
 
         # reconstruct the image using the trained generator
-        reconstructed_image = np.zeros_like(original_image)
+        reconstructed_image = np.zeros_like(original_image, dtype=float)
 
         for patch, global_coordinates, local_coordinates in zip(inpt, patch_global_coordinates, patch_local_coordinates):
             reconstructed_patch = self.generator.predict(np.expand_dims(patch, axis=0))
@@ -27,9 +27,9 @@ class anomaLEAF:
             x1_local, x2_local, y1_local, y2_local = local_coordinates
 
             extracted = reconstructed_patch[0][x1_local:x2_local, y1_local:y2_local]
-            reconstructed_image[x1_global:x2_global, y1_global:y2_global] = extracted*255
+            reconstructed_image[x1_global:x2_global, y1_global:y2_global] = extracted
 
-        return original_image, reconstructed_image
+        return original_image/255.0, reconstructed_image
     
 
     
