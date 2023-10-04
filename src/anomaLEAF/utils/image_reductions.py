@@ -97,11 +97,10 @@ def grayscale_patches(image: np.ndarray,
 
             # coordinates of grayscale patch in global image
             patch_global_coordinates.append((x1,x2,y1,y2))
+            
             # coordinates of grayscale patch in bordered tile
             patch_local_coordinates.append((x1_offset, patch_size[0]+x1_offset, y1_offset, patch_size[1]+y1_offset))
-
-            
-            
+       
     return color_patches, grayscale_patches, patch_global_coordinates, patch_local_coordinates
 
 
