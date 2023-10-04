@@ -14,7 +14,7 @@ class anomaLEAF:
                           verbosity: int = 0
                           ) -> np.ndarray:
 
-        y = self.generator.predict(np.expand_dims(input, axis=0),verbose=verbosity)
+        y = self.generator.predict(np.expand_dims(x, axis=0),verbose=verbosity)
 
         return y
         
