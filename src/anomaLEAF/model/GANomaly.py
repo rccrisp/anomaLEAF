@@ -19,7 +19,7 @@ from torch import Tensor, optim
 from anomalib.models.components import AnomalyModule
 from anomalib.models.ganomaly.loss import DiscriminatorLoss, GeneratorLoss
 
-from .torch_model import GanomalyModel
+from anomalib.models.ganomaly.torch_model import GanomalyModel
 
 logger = logging.getLogger(__name__)
 
